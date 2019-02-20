@@ -3,9 +3,9 @@
 appname := server
 
 CXX := g++
-CXXFLAGS := -Wall -Wextra -g
+CXXFLAGS := -Wall -Wextra -g -std=c++17
 LDFLAGS :=
-LDLIBS :=
+LDLIBS := -lstdc++fs # for std::filesystem
 
 srcdir := ./src
 
