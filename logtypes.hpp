@@ -1,3 +1,6 @@
+#ifndef LOGTYPES_HPP
+#define LOGTYPES_HPP
+
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -47,3 +50,5 @@ struct LogFileWriter {
 
     static void writeLogForUser(const LogJournal& journal, const std::string& user);
 };
+
+#endif // LOGTYPES_HPP
