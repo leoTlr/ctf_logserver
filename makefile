@@ -3,7 +3,7 @@
 appname := server
 
 CXX := g++
-CXXFLAGS := -Wall -Wextra
+CXXFLAGS := -Wall -Wextra -g
 LDFLAGS :=
 LDLIBS :=
 
