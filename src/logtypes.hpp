@@ -47,7 +47,6 @@ struct LogJournal {
 
 // responsible for writing LogEntries from LogJournal into Files on per-user basis
 struct LogFileWriter {
-
     static void writeLogForUser(const LogJournal& journal, const std::string& user);
 };
 

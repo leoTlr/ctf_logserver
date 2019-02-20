@@ -7,8 +7,10 @@ CXXFLAGS := -Wall -Wextra -g
 LDFLAGS :=
 LDLIBS :=
 
+srcdir := ./src
+
 srcext := cpp
-srcfiles := $(shell find . -name "*.$(srcext)")
+srcfiles := $(shell find $(srcdir) -name "*.$(srcext)")
 objects  := $(patsubst %.$(srcext), %.o, $(srcfiles))
 
 all: $(appname)
