@@ -1,0 +1,12 @@
+# ignore everything
+*
+
+# except src and header files
+!src/*.cpp
+!src/*.hpp
+
+# except this file
+!.gitignore
+
+# except makefile
+!makefile
