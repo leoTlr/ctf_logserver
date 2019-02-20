@@ -2,6 +2,8 @@
 
 #include "logtypes.hpp"
 
+using namespace std;
+
 int main() {
 
     LogJournal journal ("journal1");
@@ -13,6 +15,8 @@ int main() {
     for (LogEntry le : user1_entries) {
         std::cout << le.text << std::endl;
     }
+
+    LogFileWriter::writeLogForUser(journal, "user1");
 
     return 0;
 }

@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 #include <chrono>
+#include <filesystem>
 
 struct LogEntry;
 struct LogJournal;
@@ -32,22 +33,25 @@ struct LogEntry {
 // stores entries mapped to users
 struct LogJournal {
     std::string title;
-    std::unordered_map<std::string, std::vector<LogEntry>> logs; // mapping user->logentries 
+    std::unordered_map<std::string, std::vector<LogEntry>> logs; // mapping user->logentries
+    std::filesystem::path logdir; 
 
-    LogJournal(std::string title) :
-        title{title}
+    LogJournal(std::string title, std::filesystem::path logdir=std::filesystem::path("./logfiles/")) :
+        title{title},
+        logdir{logdir}
     {};
 
     std::vector<LogEntry> getEntriesForUser(std::string user);
     void addEntry(std::string user, LogEntry entry);
 
-    private:
+    //private:
     LogJournal(); // title needs to be set
 };
 
 // responsible for writing LogEntries from LogJournal into Files on per-user basis
+// removes LogEntries from Journal after writing
 struct LogFileWriter {
-    static void writeLogForUser(const LogJournal& journal, const std::string& user);
+    static void writeLogForUser(LogJournal& journal, const std::string user);
 };
 
 #endif // LOGTYPES_HPP
