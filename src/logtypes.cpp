@@ -6,34 +6,18 @@
 
 using namespace std;
 
-void LogJournal::addEntry(string user, LogEntry entry) {
-    static int count = 0;
-    logs[user].push_back(entry);
-    count++;
-}
-
-vector<LogEntry> LogJournal::getEntriesForUser(string user) {
-    auto vec = logs[user]; // copy
-    return vec;
-}
-
-// write all LogEntries from user in journal into file and delete from journal when done
-void LogFileWriter::writeLogForUser(LogJournal& journal, const string user) {
-
-    if (journal.logs.empty()) return;
-
-    // check if entry for user
-    if (journal.logs.find(user) == journal.logs.end()) return;
+// write all LogEntries from user in LogQueue into file and delete from LogQueue when done
+void LogFileManager::writeLogEntry(const string user, LogEntry entry) {
 
     // create dir for logs if needed
     error_code err;
-    filesystem::create_directory(journal.logdir, err); // does nothing if exists
+    filesystem::create_directory(logdir, err); // does nothing if exists
     if (err) {
         cerr << "error creating log directory: " << err << endl;
         return;
     }
 
-    auto logfile_path = journal.logdir;
+    auto logfile_path = logdir;
     logfile_path /= "logfile_"+user;  // log/ -> log/logfile_userX
 
     ofstream logfile (logfile_path, ios::app);
@@ -43,8 +27,6 @@ void LogFileWriter::writeLogForUser(LogJournal& journal, const string user) {
     }
 
     // todo: make timestamp human readable and put in front
-    for (LogEntry le : journal.logs[user]) {
-        logfile << le.text << "\n";
-    }
-    journal.logs.erase(user);
+    logfile << entry.text << endl;
+    logfile.close();
 }

@@ -6,17 +6,10 @@ using namespace std;
 
 int main() {
 
-    LogJournal journal ("journal1");
+    LogFileManager lfm;
 
     for (int i=0; i<5; i++)
-        journal.addEntry("user1", LogEntry("entry"));
-
-    auto user1_entries = journal.getEntriesForUser("user1");
-    for (LogEntry le : user1_entries) {
-        std::cout << le.text << std::endl;
-    }
-
-    LogFileWriter::writeLogForUser(journal, "user1");
+        lfm.writeLogEntry("user1", LogEntry("entry"));
 
     return 0;
 }
