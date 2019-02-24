@@ -1,9 +1,12 @@
 # ignore everything
 *
 
+# except directories
+!*/
+
 # except src and header files
-!src/*.cpp
-!src/*.hpp
+!*.cpp
+!*.hpp
 
 # except this file
 !.gitignore
