@@ -4,8 +4,8 @@ appname := server
 
 CXX := g++
 CXXFLAGS := -Wall -Wextra -g -std=c++17
-LDFLAGS :=
-LDLIBS := -lstdc++fs # for std::filesystem
+LDFLAGS := -I /usr/include/boost/ # for boost beast
+LDLIBS := -lstdc++fs -lpthread # lstdc++fs for std::filesystem, -lpthread for boost beast
 
 srcdir := ./src
 
