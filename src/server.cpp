@@ -17,17 +17,20 @@ int main(int argc, char** argv) {
     uint16_t port = static_cast<uint16_t>(atoi(argv[1]));
 
     net::io_context ioc {1};
+
     tcp::acceptor acc {ioc, {net::ip::make_address("0.0.0.0"), port}};
     tcp::socket sock {ioc};
     start_http_server(acc, sock);
+
+    // register SIGINT and SIGTERM handler
+    net::signal_set signals {ioc, SIGINT, SIGTERM};
+    signals.async_wait(
+        [&] (beast::error_code const&, int) {
+            ioc.stop();
+        });
+
     cout << "started server on port " << port << endl;
     ioc.run();
 
-    LogFileManager lfm;
-
-    for (int i=0; i<5; i++)
-        lfm.writeLogEntry("user1", LogEntry("entry"));
-
-    cout << "fin" << endl;
-    return 0;
+    return EXIT_SUCCESS;
 }
