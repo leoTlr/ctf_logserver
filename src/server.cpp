@@ -1,4 +1,6 @@
 #include <iostream>
+#include <memory>
+#include <filesystem>
 
 #include "logtypes.hpp"
 #include "http_server.hpp"
@@ -20,7 +22,9 @@ int main(int argc, char** argv) {
 
     tcp::acceptor acc {ioc, {net::ip::make_address("0.0.0.0"), port}};
     tcp::socket sock {ioc};
-    start_http_server(acc, sock);
+
+    auto const logdir = make_shared<filesystem::path>("./logfiles/");
+    start_http_server(acc, sock, logdir);
 
     // register SIGINT and SIGTERM handler
     net::signal_set signals {ioc, SIGINT, SIGTERM};
