@@ -21,17 +21,17 @@
 /*  handler class for http connections  */
 class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
 
-    boost::asio::ip::tcp::socket socket;
-    boost::beast::flat_buffer readbuf {8192};
-    boost::beast::http::request<boost::beast::http::dynamic_body> request;
+    boost::asio::ip::tcp::socket socket_;
+    boost::beast::flat_buffer readbuf_ {8192};
+    boost::beast::http::request<boost::beast::http::dynamic_body> request_;
 
     // timer for putting a deadline on connection processing
-    boost::asio::basic_waitable_timer<std::chrono::steady_clock> deadline {
-        socket.get_executor().context(), 
-        std::chrono::seconds(60)
+    boost::asio::basic_waitable_timer<std::chrono::steady_clock> deadline_ {
+        socket_.get_executor().context(), 
+        std::chrono::seconds(30)
     };
 
-    std::shared_ptr<std::filesystem::path const> logdir;
+    std::shared_ptr<std::filesystem::path const> logdir_;
 
     // asynchronously recieve a complete request message
     void readRequest();
@@ -43,53 +43,43 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
     void handleGET();
     void handlePOST();
 
-    // asynchronously write response in socket
-    template <class Body> // has to be of type boost::beast::http::body
-    void writeResponse(boost::beast::http::response<Body> response) {
-        std::cout << "writeResponse start" << std::endl; std::cout.flush();
+    // asynchronously write response in socket_
+    template <class Body, class Fields> // has to be of type boost::beast::http::body::value_type
+    void writeResponse(boost::beast::http::response<Body, Fields>&& res) {
 
+        // keep self and response alive during async write
         auto self = shared_from_this();
-        response.set(boost::beast::http::field::content_length, response.body().size());
-
-        std::cout << "writeResponse be4 async_write" << std::endl; std::cout.flush();
+        auto sp = std::make_shared<boost::beast::http::response<Body, Fields>> (std::move(res));
+        
         boost::beast::http::async_write(
-            socket,
-            response,
-            [self] (boost::beast::error_code ec, std::size_t bytes_transferred) {
-                std::cout << "writeResponse compl handler start" << std::endl; std::cout.flush();
-                // todo: completion handler does not get invoked
-
-                boost::ignore_unused(bytes_transferred);
-                if (ec)
-                    std::cerr << ec.message() << std::endl;
+            socket_,
+            *sp,
+            [self, sp] (boost::beast::error_code ec, std::size_t) {
 
                 // end tcp conn gracefully    
-                self->socket.shutdown(boost::asio::ip::tcp::socket::shutdown_send, ec);
-                self->deadline.cancel();
-
-                std::cout << "writeResponse compl handler fin" << std::endl; std::cout.flush();
-            });
-
-        std::cout << "writeResponse fin" << std::endl; std::cout.flush();        
+                self->socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_send, ec);
+                self->deadline_.cancel();
+            });       
     }
 
     // close conn after wait
     void checkDeadline();
 
     // misc
-    // send error responses
-    void sendBadRequest(std::string const& reason);
-    void sendNotFound();
-    void sendServerError(std::string const& reason);
+    // construct various responses
+    boost::beast::http::response<boost::beast::http::dynamic_body> BadRequest(std::string const& reason);
+    boost::beast::http::response<boost::beast::http::dynamic_body> NotFound();
+    boost::beast::http::response<boost::beast::http::dynamic_body> ServerError(std::string const& reason);
+    boost::beast::http::response<boost::beast::http::file_body> LogfileResponse(std::filesystem::path const& full_path);
 
 public:
     HttpConnection(boost::asio::ip::tcp::socket socket, std::shared_ptr<std::filesystem::path const> const& logdir) :
-        socket(std::move(socket)),
-        logdir(logdir)
+        socket_(std::move(socket)), // take ownership of socket
+        logdir_(logdir)
     {   
         // ensure logdir exists
         std::error_code ec;
-        std::filesystem::create_directory(*logdir, ec); // does nothing if exists
+        std::filesystem::create_directory(*logdir_, ec); // does nothing if exists
         if (ec) {
             std::cerr << ec.message() << std:: endl;
             throw; // dont construct obj in case of error
@@ -97,8 +87,8 @@ public:
     };
 
     ~HttpConnection() {
-        socket.close();
-        deadline.cancel();
+        socket_.close();
+        deadline_.cancel();
     }
 
     void start() {
@@ -108,7 +98,7 @@ public:
 };
 
 void start_http_server(boost::asio::ip::tcp::acceptor& acceptor,
-                        boost::asio::ip::tcp::socket& socket,
+                        boost::asio::ip::tcp::socket& socket_,
                         std::shared_ptr<std::filesystem::path const> const& logdir);
 
 #endif // HTTP_SERVER_HPP
