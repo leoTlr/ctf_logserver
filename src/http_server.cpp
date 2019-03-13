@@ -1,7 +1,3 @@
-
-    #include <fstream>
-    #include <iostream>
-
 #include "http_server.hpp"
 
 namespace beast = boost::beast;         // from <boost/beast.hpp>
@@ -10,7 +6,7 @@ namespace net = boost::asio;            // from <boost/asio.hpp>
 using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 using fsp = std::filesystem::path;
 
-void fail(beast::error_code const& ec, std::string const& msg) {
+void fail(std::error_code const& ec, std::string const& msg) {
     std::cerr << msg << ": " << ec.message() << std:: endl;
 }
 
@@ -108,10 +104,8 @@ http::response<http::file_body> HttpConnection::LogfileResponse(fsp const& full_
     http::response<http::file_body> res {http::status::ok, request_.version()};
     res.body().open(full_path.c_str(), beast::file_mode::scan, ec);
 
-    if (ec) {
-        std::cerr << "LogfileResponse(): " << ec.message() << std::endl;
-        assert(false);
-    }
+    if (ec)
+        fail(ec, "LogfileResponse()");
 
     res.set(http::field::content_length, res.body().size());
     res.set(http::field::content_type, "text/plain");

@@ -2,7 +2,6 @@
 #include <memory>
 #include <filesystem>
 
-#include "logtypes.hpp"
 #include "http_server.hpp"
 
 using namespace std;
@@ -30,6 +29,7 @@ int main(int argc, char** argv) {
     net::signal_set signals {ioc, SIGINT, SIGTERM};
     signals.async_wait(
         [&] (beast::error_code const&, int) {
+            cout << "\nsignal recieved. stopping server" << endl;
             ioc.stop();
         });
 

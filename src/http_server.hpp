@@ -13,10 +13,13 @@
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/asio.hpp>
+#include <iostream> // fail()
 
-    #include <iostream>
+void start_http_server(boost::asio::ip::tcp::acceptor& acceptor,
+                        boost::asio::ip::tcp::socket& socket_,
+                        std::filesystem::path const& logdir);
 
-#include "logtypes.hpp"
+void fail(std::error_code const& ec, std::string const& msg);
 
 /*  handler class for http connections  */
 class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
@@ -81,7 +84,7 @@ public:
         std::error_code ec;
         std::filesystem::create_directory(logdir_, ec); // does nothing if exists
         if (ec) {
-            std::cerr << ec.message() << std:: endl;
+            fail(ec, "HttpConnection() constructor");
             throw; // dont construct obj in case of error
         }
     };
@@ -96,9 +99,5 @@ public:
         checkDeadline();
     }; 
 };
-
-void start_http_server(boost::asio::ip::tcp::acceptor& acceptor,
-                        boost::asio::ip::tcp::socket& socket_,
-                        std::filesystem::path const& logdir);
 
 #endif // HTTP_SERVER_HPP
