@@ -10,6 +10,9 @@ namespace net = boost::asio;            // from <boost/asio.hpp>
 using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 using fsp = std::filesystem::path;
 
+void fail(beast::error_code const& ec, std::string const& msg) {
+    std::cerr << msg << ": " << ec.message() << std:: endl;
+}
 
 void start_http_server(tcp::acceptor& acceptor, 
                         tcp::socket& socket, 
@@ -35,8 +38,14 @@ void HttpConnection::readRequest() {
             boost::ignore_unused(bytes_transferred);
             if (!ec)
                 self->processRequest();
-            else
-                std::cerr << ec.message() << std::endl;   
+            else {
+                if (ec.message().substr(0, 3) == "bad") // bad [ target|version|... ]
+                    self->writeResponse(self->BadRequest(ec.message()));
+                else {
+                    fail(ec, "readRequest()");
+                    self->writeResponse(self->ServerError(ec.message()));
+                }
+            }
         });
 }
 
