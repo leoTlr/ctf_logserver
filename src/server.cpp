@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
     tcp::acceptor acc {ioc, {net::ip::make_address("0.0.0.0"), port}};
     tcp::socket sock {ioc};
 
-    auto const logdir = make_shared<filesystem::path>("./logfiles/");
+    auto const logdir = filesystem::path("./logfiles/");
     start_http_server(acc, sock, logdir);
 
     // register SIGINT and SIGTERM handler

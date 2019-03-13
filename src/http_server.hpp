@@ -31,7 +31,7 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
         std::chrono::seconds(30)
     };
 
-    std::shared_ptr<std::filesystem::path const> logdir_;
+    std::filesystem::path logdir_;
 
     // asynchronously recieve a complete request message
     void readRequest();
@@ -68,18 +68,18 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
     // misc
     // construct various responses
     boost::beast::http::response<boost::beast::http::dynamic_body> BadRequest(std::string const& reason);
-    boost::beast::http::response<boost::beast::http::dynamic_body> NotFound();
+    boost::beast::http::response<boost::beast::http::dynamic_body> NotFound(boost::string_view target);
     boost::beast::http::response<boost::beast::http::dynamic_body> ServerError(std::string const& reason);
     boost::beast::http::response<boost::beast::http::file_body> LogfileResponse(std::filesystem::path const& full_path);
 
 public:
-    HttpConnection(boost::asio::ip::tcp::socket socket, std::shared_ptr<std::filesystem::path const> const& logdir) :
+    HttpConnection(boost::asio::ip::tcp::socket socket, std::filesystem::path const& logdir) :
         socket_(std::move(socket)), // take ownership of socket
         logdir_(logdir)
     {   
         // ensure logdir exists
         std::error_code ec;
-        std::filesystem::create_directory(*logdir_, ec); // does nothing if exists
+        std::filesystem::create_directory(logdir_, ec); // does nothing if exists
         if (ec) {
             std::cerr << ec.message() << std:: endl;
             throw; // dont construct obj in case of error
@@ -99,6 +99,6 @@ public:
 
 void start_http_server(boost::asio::ip::tcp::acceptor& acceptor,
                         boost::asio::ip::tcp::socket& socket_,
-                        std::shared_ptr<std::filesystem::path const> const& logdir);
+                        std::filesystem::path const& logdir);
 
 #endif // HTTP_SERVER_HPP

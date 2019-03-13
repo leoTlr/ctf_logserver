@@ -13,7 +13,7 @@ using fsp = std::filesystem::path;
 
 void start_http_server(tcp::acceptor& acceptor, 
                         tcp::socket& socket, 
-                        std::shared_ptr<std::filesystem::path const> const& logdir) {
+                        std::filesystem::path const& logdir) {
     acceptor.async_accept(socket, 
         [&](beast::error_code ec) {
             if (!ec)
@@ -47,16 +47,13 @@ void HttpConnection::processRequest() {
     switch (request_.method()) {
         case http::verb::get: // respond with logentries for requested user
             return handleGET(); // gather contents for body
-            break;
         case http::verb::post: // add provided logentries for user
             // todo: auth
-            handlePOST();
-            break;
+            return handlePOST();
         case http::verb::head: // (maybe last logfile update timepoint for  req. user)
             // falltrhugh until implemented
         default:
-            writeResponse(BadRequest("invalid request method"));
-            break;
+            return writeResponse(BadRequest("invalid request method"));
     }
 }
 
@@ -65,19 +62,19 @@ http::response<http::dynamic_body> HttpConnection::BadRequest(std::string const&
     http::response<http::dynamic_body> response;
     response.result(http::status::bad_request);
     response.set(http::field::content_type, "text/plain");
-    beast::ostream(response.body()) << reason;
+    beast::ostream(response.body()) << reason << std::endl;
     return response;
 }
 
 // return not found response
-http::response<http::dynamic_body> HttpConnection::NotFound() {
+http::response<http::dynamic_body> HttpConnection::NotFound(boost::string_view target) {
     http::response<http::dynamic_body> response;
     response.result(http::status::not_found);
     response.set(http::field::content_type, "text/plain");
+    target.remove_prefix(1);
     beast::ostream(response.body()) 
-        << "no logs found for user " << "'" 
-        << request_.target().substr(request_.target().front()+1)
-        << "'";
+        << "no logs found for user " << "'" << target << "'" << std::endl;
+    response.set(http::field::content_length, response.body().size());
     return response;
 }
 
@@ -86,7 +83,8 @@ http::response<http::dynamic_body> HttpConnection::ServerError(std::string const
     http::response<http::dynamic_body> response;
     response.result(http::status::internal_server_error);
     response.set(http::field::content_type, "text/plain");
-    beast::ostream(response.body()) << reason;
+    beast::ostream(response.body()) << reason << std::endl;
+    response.set(http::field::content_length, response.body().size());
     return response;
 }
 
@@ -112,24 +110,28 @@ http::response<http::file_body> HttpConnection::LogfileResponse(fsp const& full_
 }
 
 // gather information for response body
+// GET /user1 HTTP/1.1\r\n\r\n -> send /logdir/user1.log
 void HttpConnection::handleGET() {
 
     // todo auth
 
-    // prevent directory traversal
+    // check if target of type /user
     if (request_.target().empty() || request_.target()[0] != '/' || 
-        request_.target().find("..") != beast::string_view::npos) {
-        
+        request_.target().find("..") != beast::string_view::npos || // prevent directory traversal
+        request_.target().find('/') != request_.target().rfind('/')) // only 1 '/' allowed
+    {
         return writeResponse(BadRequest("invalid user"));
     }
 
-    // /user1 -> logdir/logfile_user1    TODO
-    auto const log_path = fsp("./logfiles/logfile_user1");
+    // /user1 -> logdir/user1.log
+    auto const user_str = request_.target().substr(1).to_string(); // string_view::substr doesnt return std::string
+    auto const logfile_path = (logdir_ / fsp(user_str)).replace_extension(".log");
+    
+    // LogfileResponse() requires existing path
+    if (!std::filesystem::exists(logfile_path))
+        return writeResponse(NotFound(request_.target()));
 
-    // check if exists TODO
-
-    writeResponse(LogfileResponse(log_path));
-    return;
+    return writeResponse(LogfileResponse(logfile_path));
 }
 
 void HttpConnection::handlePOST() {
