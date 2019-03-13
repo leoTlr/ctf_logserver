@@ -72,6 +72,7 @@ http::response<http::dynamic_body> HttpConnection::BadRequest(std::string const&
     response.result(http::status::bad_request);
     response.set(http::field::content_type, "text/plain");
     beast::ostream(response.body()) << reason << std::endl;
+    response.set(http::field::content_length, response.body().size());
     return response;
 }
 
