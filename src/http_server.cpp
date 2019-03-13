@@ -1,3 +1,6 @@
+#include <boost/beast/core/detail/base64.hpp> // caution: could move somwhere else
+#include <exception> // std::out_of_range for http::basic_fields::at
+
 #include "http_server.hpp"
 
 namespace beast = boost::beast;         // from <boost/beast.hpp>
@@ -98,6 +101,16 @@ http::response<http::dynamic_body> HttpConnection::ServerError(std::string const
     return response;
 }
 
+http::response<http::dynamic_body> HttpConnection::Unauthorized(std::string const& reason) {
+    http::response<http::dynamic_body> res;
+    res.result(http::status::unauthorized);
+    res.set(http::field::server, server_name_);
+    res.set(http::field::content_type, "text/plain");
+    beast::ostream(res.body()) << reason << std::endl;
+    res.set(http::field::content_length, res.body().size());
+    return res;
+}
+
 // return response with file specified in full_path as body
 // path has to be valid
 http::response<http::file_body> HttpConnection::LogfileResponse(fsp const& full_path) {
@@ -133,19 +146,55 @@ void HttpConnection::handleGET() {
     }
 
     // /user1 -> logdir/user1.log
-    auto const user_str = request_.target().substr(1).to_string(); // string_view::substr doesnt return std::string
-    auto const logfile_path = (logdir_ / fsp(user_str)).replace_extension(".log");
+    auto const target_user = request_.target().substr(1).to_string(); // string_view::substr doesnt return std::string
+    auto const logfile_path = (logdir_ / fsp(target_user)).replace_extension(".log");
+
+    // http basic auth (field authorization with value "Basic "+base64(user:pw))
+    std::string auth_user;
+    std::string auth_pass;
+    try {
+        auto b64_credentials = request_.at(http::field::authorization);
+
+        if (b64_credentials.find("Basic ") || b64_credentials.find("basic "))
+            b64_credentials.remove_prefix(6);
+        else
+            return writeResponse(BadRequest("bad authentication method"));
+
+        auto str_credentials = beast::detail::base64_decode(b64_credentials.to_string());
+
+        std::size_t colon_pos = str_credentials.find(':');
+        if (colon_pos != std::string::npos) {
+            auth_user = str_credentials.substr(0, colon_pos);
+            auth_pass = str_credentials.substr(colon_pos+1);
+        } else {
+            return writeResponse(BadRequest("authentication credentials malformed"));
+        }
+
+    } catch(std::out_of_range& e) { // case if field athorization not present
+        return writeResponse(Unauthorized("no authentification method provided"));
+    } catch(std::exception& e) {
+        std::cerr << "handleGET() during auth: " << e.what() << std::endl;
+        return writeResponse(ServerError(e.what()));
+    }
+
+    if (auth_user != target_user) // todo match provided pw (with?)
+        return writeResponse(Unauthorized("provided user has no permission for requested logfile"));
     
     // LogfileResponse() requires existing path
     if (!std::filesystem::exists(logfile_path))
         return writeResponse(NotFound(request_.target()));
 
+    // construct and send response containing requested logfile
     return writeResponse(LogfileResponse(logfile_path));
 }
 
 void HttpConnection::handlePOST() {
-    // todo
-    //writeResponse();
+    // todo auth
+
+    // todo: write encrypted
+    
+    if (request_.body().size() < 1)
+        return writeResponse(BadRequest("empty message"));
 }
 
 // close conn after wait

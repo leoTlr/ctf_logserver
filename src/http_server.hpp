@@ -76,6 +76,7 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
     boost::beast::http::response<boost::beast::http::dynamic_body> BadRequest(std::string const& reason);
     boost::beast::http::response<boost::beast::http::dynamic_body> NotFound(boost::string_view target);
     boost::beast::http::response<boost::beast::http::dynamic_body> ServerError(std::string const& reason);
+    boost::beast::http::response<boost::beast::http::dynamic_body> Unauthorized(std::string const& reason);
     boost::beast::http::response<boost::beast::http::file_body> LogfileResponse(std::filesystem::path const& full_path);
 
 public:
