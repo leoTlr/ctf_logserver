@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
     tcp::socket sock {ioc};
 
     auto const logdir = filesystem::path("./logfiles/");
-    start_http_server(acc, sock, logdir);
+    start_http_server(acc, sock, logdir, "logserver v0.1");
 
     // register SIGINT and SIGTERM handler
     net::signal_set signals {ioc, SIGINT, SIGTERM};

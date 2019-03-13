@@ -12,12 +12,13 @@ void fail(std::error_code const& ec, std::string const& msg) {
 
 void start_http_server(tcp::acceptor& acceptor, 
                         tcp::socket& socket, 
-                        std::filesystem::path const& logdir) {
+                        std::filesystem::path const& logdir,
+                        std::string const& server_name) {
     acceptor.async_accept(socket, 
         [&](beast::error_code ec) {
             if (!ec)
-                std::make_shared<HttpConnection>(std::move(socket), logdir)->start();
-            start_http_server(acceptor, socket, logdir);
+                std::make_shared<HttpConnection>(std::move(socket), logdir, server_name)->start();
+            start_http_server(acceptor, socket, logdir, server_name);
         });
 }
 
@@ -66,6 +67,7 @@ void HttpConnection::processRequest() {
 http::response<http::dynamic_body> HttpConnection::BadRequest(std::string const& reason) {
     http::response<http::dynamic_body> response;
     response.result(http::status::bad_request);
+    response.set(http::field::server, server_name_);
     response.set(http::field::content_type, "text/plain");
     beast::ostream(response.body()) << reason << std::endl;
     response.set(http::field::content_length, response.body().size());
@@ -76,6 +78,7 @@ http::response<http::dynamic_body> HttpConnection::BadRequest(std::string const&
 http::response<http::dynamic_body> HttpConnection::NotFound(boost::string_view target) {
     http::response<http::dynamic_body> response;
     response.result(http::status::not_found);
+    response.set(http::field::server, server_name_);
     response.set(http::field::content_type, "text/plain");
     target.remove_prefix(1);
     beast::ostream(response.body()) 
@@ -88,6 +91,7 @@ http::response<http::dynamic_body> HttpConnection::NotFound(boost::string_view t
 http::response<http::dynamic_body> HttpConnection::ServerError(std::string const& reason) {
     http::response<http::dynamic_body> response;
     response.result(http::status::internal_server_error);
+    response.set(http::field::server, server_name_);
     response.set(http::field::content_type, "text/plain");
     beast::ostream(response.body()) << reason << std::endl;
     response.set(http::field::content_length, response.body().size());
@@ -107,6 +111,7 @@ http::response<http::file_body> HttpConnection::LogfileResponse(fsp const& full_
     if (ec)
         fail(ec, "LogfileResponse()");
 
+    res.set(http::field::server, server_name_);
     res.set(http::field::content_length, res.body().size());
     res.set(http::field::content_type, "text/plain");
 

@@ -17,7 +17,9 @@
 
 void start_http_server(boost::asio::ip::tcp::acceptor& acceptor,
                         boost::asio::ip::tcp::socket& socket_,
-                        std::filesystem::path const& logdir);
+                        std::filesystem::path const& logdir,
+                        std::string const& server_name
+);
 
 void fail(std::error_code const& ec, std::string const& msg);
 
@@ -35,6 +37,7 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
     };
 
     std::filesystem::path logdir_;
+    std::string server_name_;
 
     // asynchronously recieve a complete request message
     void readRequest();
@@ -76,9 +79,14 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
     boost::beast::http::response<boost::beast::http::file_body> LogfileResponse(std::filesystem::path const& full_path);
 
 public:
-    HttpConnection(boost::asio::ip::tcp::socket socket, std::filesystem::path const& logdir) :
+    HttpConnection(
+        boost::asio::ip::tcp::socket socket, 
+        std::filesystem::path const& logdir, 
+        std::string const& server_name) :
+
         socket_(std::move(socket)), // take ownership of socket
-        logdir_(logdir)
+        logdir_(logdir),
+        server_name_(server_name)
     {   
         // ensure logdir exists
         std::error_code ec;
