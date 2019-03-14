@@ -68,37 +68,37 @@ void HttpConnection::processRequest() {
 
 // return bad request response
 http::response<http::dynamic_body> HttpConnection::BadRequest(std::string const& reason) {
-    http::response<http::dynamic_body> response;
-    response.result(http::status::bad_request);
-    response.set(http::field::server, server_name_);
-    response.set(http::field::content_type, "text/plain");
-    beast::ostream(response.body()) << reason << std::endl;
-    response.set(http::field::content_length, response.body().size());
-    return response;
+    http::response<http::dynamic_body> res;
+    res.result(http::status::bad_request);
+    res.set(http::field::server, server_name_);
+    res.set(http::field::content_type, "text/plain");
+    beast::ostream(res.body()) << reason << std::endl;
+    res.set(http::field::content_length, res.body().size());
+    return res;
 }
 
 // return not found response
 http::response<http::dynamic_body> HttpConnection::NotFound(boost::string_view target) {
-    http::response<http::dynamic_body> response;
-    response.result(http::status::not_found);
-    response.set(http::field::server, server_name_);
-    response.set(http::field::content_type, "text/plain");
+    http::response<http::dynamic_body> res;
+    res.result(http::status::not_found);
+    res.set(http::field::server, server_name_);
+    res.set(http::field::content_type, "text/plain");
     target.remove_prefix(1);
-    beast::ostream(response.body()) 
+    beast::ostream(res.body()) 
         << "no logs found for user " << "'" << target << "'" << std::endl;
-    response.set(http::field::content_length, response.body().size());
-    return response;
+    res.set(http::field::content_length, res.body().size());
+    return res;
 }
 
 // return internal server error response
 http::response<http::dynamic_body> HttpConnection::ServerError(std::string const& reason) {
-    http::response<http::dynamic_body> response;
-    response.result(http::status::internal_server_error);
-    response.set(http::field::server, server_name_);
-    response.set(http::field::content_type, "text/plain");
-    beast::ostream(response.body()) << reason << std::endl;
-    response.set(http::field::content_length, response.body().size());
-    return response;
+    http::response<http::dynamic_body> res;
+    res.result(http::status::internal_server_error);
+    res.set(http::field::server, server_name_);
+    res.set(http::field::content_type, "text/plain");
+    beast::ostream(res.body()) << reason << std::endl;
+    res.set(http::field::content_length, res.body().size());
+    return res;
 }
 
 http::response<http::dynamic_body> HttpConnection::Unauthorized(std::string const& reason) {
