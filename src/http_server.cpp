@@ -215,6 +215,29 @@ void HttpConnection::handlePOST() {
     
     if (request_.body().size() < 1)
         return writeResponse(BadRequest("empty message"));
+
+    // /user1 -> logdir/user1.log
+    auto const target_user = request_.target().substr(1).to_string(); // string_view::substr doesnt return std::string
+    auto const logfile_path = (logdir_ / fsp(target_user)).replace_extension(".log");
+
+    // append to logfile
+    std::ofstream logfile (logfile_path, std::ios_base::app);
+    if (!logfile)
+        return writeResponse(ServerError("could not open logfile"));
+    
+    // TODO: find more elegant way
+    // write body into logfile
+    for (auto part : request_.body().data()) {
+        auto buf_start = net::buffer_cast<const char*>(part);
+        auto buf_last = buf_start + net::buffer_size(part);
+        std::copy(buf_start, buf_last, std::ostream_iterator<char>(logfile));
+    }
+    logfile << std::endl;
+    logfile.close();
+
+    // TODO create JWT and send back as res
+
+    return writeResponse(http::response<http::dynamic_body>());
 }
 
 // close conn after wait
