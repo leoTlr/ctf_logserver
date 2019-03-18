@@ -13,3 +13,7 @@
 
 # except makefile
 !makefile
+
+# except test scripts
+!get_*.sh
+!post_*.sh
