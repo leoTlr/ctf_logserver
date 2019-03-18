@@ -1,5 +1,6 @@
 #include <boost/beast/core/detail/base64.hpp> // caution: could move somwhere else
 #include <exception> // std::out_of_range for http::basic_fields::at
+#include <fstream>
 
 #include "http_server.hpp"
 
@@ -135,14 +136,14 @@ http::response<http::file_body> HttpConnection::LogfileResponse(fsp const& full_
 // GET /user1 HTTP/1.1\r\n\r\n -> send /logdir/user1.log
 void HttpConnection::handleGET() {
 
-    // todo auth
+    // todo auth with JWT
 
     // check if target of type /user
     if (request_.target().empty() || request_.target()[0] != '/' || 
         request_.target().find("..") != beast::string_view::npos || // prevent directory traversal
         request_.target().find('/') != request_.target().rfind('/')) // only 1 '/' allowed
     {
-        return writeResponse(BadRequest("invalid user"));
+        return writeResponse(BadRequest("invalid request target"));
     }
 
     // /user1 -> logdir/user1.log
@@ -150,42 +151,61 @@ void HttpConnection::handleGET() {
     auto const logfile_path = (logdir_ / fsp(target_user)).replace_extension(".log");
 
     // http basic auth (field authorization with value "Basic "+base64(user:pw))
+    // only continue if credentials provided
     std::string auth_user;
     std::string auth_pass;
-    try {
-        auto b64_credentials = request_.at(http::field::authorization);
-
-        if (b64_credentials.find("Basic ") || b64_credentials.find("basic "))
-            b64_credentials.remove_prefix(6);
-        else
+    switch (getBasicAuthCredentials(auth_user, auth_pass)) {
+        case 0: // success, just continue
+            break;
+        case -1: 
+            return writeResponse(Unauthorized("no authentification method provided"));
+        case -2: // todo: accept and handle JWT
             return writeResponse(BadRequest("bad authentication method"));
-
-        auto str_credentials = beast::detail::base64_decode(b64_credentials.to_string());
-
-        std::size_t colon_pos = str_credentials.find(':');
-        if (colon_pos != std::string::npos) {
-            auth_user = str_credentials.substr(0, colon_pos);
-            auth_pass = str_credentials.substr(colon_pos+1);
-        } else {
+        case -3:
             return writeResponse(BadRequest("authentication credentials malformed"));
-        }
-
-    } catch(std::out_of_range& e) { // case if field athorization not present
-        return writeResponse(Unauthorized("no authentification method provided"));
-    } catch(std::exception& e) {
-        std::cerr << "handleGET() during auth: " << e.what() << std::endl;
-        return writeResponse(ServerError(e.what()));
+        default: assert(false); // should not happen
     }
 
-    if (auth_user != target_user) // todo match provided pw (with?)
+    // todo: match pw (with?)
+    if (auth_user != target_user) {
         return writeResponse(Unauthorized("provided user has no permission for requested logfile"));
-    
+    }
+
     // LogfileResponse() requires existing path
     if (!std::filesystem::exists(logfile_path))
         return writeResponse(NotFound(request_.target()));
 
     // construct and send response containing requested logfile
     return writeResponse(LogfileResponse(logfile_path));
+}
+
+/*  http basic auth (field authorization with value "Basic "+base64(user:pw))
+    returns 0 and fills auth_user and auth_pass if successful
+    -1 Header field Authentification not present
+    -2 auth method != Basic
+    -3 auth credentials malformed    */
+int HttpConnection::getBasicAuthCredentials(std::string& auth_user, std::string& auth_pass) {
+
+    try {
+        auto b64_credentials = request_.at(http::field::authorization);
+        if (b64_credentials.find("Basic ") || b64_credentials.find("basic "))
+            b64_credentials.remove_prefix(6);
+        else return -2; // auth method != Basic
+
+        // WARNING beast::detail namespace considered private -> could move somwhere else or disappear
+        auto str_credentials = beast::detail::base64_decode(b64_credentials.to_string());
+
+        std::size_t colon_pos = str_credentials.find(':');
+        if (colon_pos != std::string::npos) {
+            auth_user = str_credentials.substr(0, colon_pos);
+            auth_pass = str_credentials.substr(colon_pos+1);
+        } else return -3; // auth credentials malformed
+
+    } catch (std::out_of_range& e) {
+        return -1; // no Authentification field present
+    }
+
+    return 0;
 }
 
 void HttpConnection::handlePOST() {

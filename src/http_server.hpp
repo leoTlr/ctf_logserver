@@ -71,6 +71,8 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
     // close conn after wait
     void checkDeadline();
 
+    int getBasicAuthCredentials(std::string& auth_user, std::string& auth_pass);
+
     // misc
     // construct various responses
     boost::beast::http::response<boost::beast::http::dynamic_body> BadRequest(std::string const& reason);
