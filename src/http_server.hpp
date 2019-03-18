@@ -52,6 +52,8 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
     // asynchronously write response in socket_
     template <class Body, class Fields> // has to be of type boost::beast::http::body::value_type
     void writeResponse(boost::beast::http::response<Body, Fields>&& res) {
+        static_assert(boost::beast::http::is_body<Body>::value, "Body requirements not met");
+        static_assert(boost::beast::http::is_fields<Fields>::value, "Fields requirements not met");
 
         // keep self and response alive during async write
         auto self = shared_from_this();
@@ -71,15 +73,15 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
     // close conn after wait
     void checkDeadline();
 
-    int getBasicAuthCredentials(std::string& auth_user, std::string& auth_pass);
+    int getBasicAuthCredentials(std::string& auth_user, std::string& auth_pass) const;
 
     // misc
     // construct various responses
-    boost::beast::http::response<boost::beast::http::dynamic_body> BadRequest(std::string const& reason);
-    boost::beast::http::response<boost::beast::http::dynamic_body> NotFound(boost::string_view target);
-    boost::beast::http::response<boost::beast::http::dynamic_body> ServerError(std::string const& reason);
-    boost::beast::http::response<boost::beast::http::dynamic_body> Unauthorized(std::string const& reason);
-    boost::beast::http::response<boost::beast::http::file_body> LogfileResponse(std::filesystem::path const& full_path);
+    boost::beast::http::response<boost::beast::http::dynamic_body> BadRequest(std::string const& reason) const;
+    boost::beast::http::response<boost::beast::http::dynamic_body> NotFound(boost::string_view target) const;
+    boost::beast::http::response<boost::beast::http::dynamic_body> ServerError(std::string const& reason) const;
+    boost::beast::http::response<boost::beast::http::dynamic_body> Unauthorized(std::string const& reason) const;
+    boost::beast::http::response<boost::beast::http::file_body> LogfileResponse(std::filesystem::path const& full_path) const;
 
 public:
     HttpConnection(
