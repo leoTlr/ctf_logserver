@@ -9,7 +9,7 @@ namespace beast = boost::beast;         // from <boost/beast.hpp>
 namespace http = beast::http;           // from <boost/beast/http.hpp>
 namespace net = boost::asio;            // from <boost/asio.hpp>
 using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
-using fsp = std::filesystem::path;
+namespace fs = std::filesystem;
 
 void fail(std::error_code const& ec, std::string const& msg) {
     std::cerr << msg << ": " << ec.message() << std:: endl;
@@ -17,13 +17,19 @@ void fail(std::error_code const& ec, std::string const& msg) {
 
 void start_http_server(tcp::acceptor& acceptor, 
                         tcp::socket& socket, 
-                        std::filesystem::path const& logdir,
+                        fs::path const& logdir,
+                        fs::path const& keydir,
                         std::string const& server_name) {
     acceptor.async_accept(socket, 
         [&](beast::error_code ec) {
-            if (!ec)
-                std::make_shared<HttpConnection>(std::move(socket), logdir, server_name)->start();
-            start_http_server(acceptor, socket, logdir, server_name);
+            if (!ec) {
+                try {
+                    std::make_shared<HttpConnection>(std::move(socket), logdir, keydir, server_name)->start();
+                } catch (std::invalid_argument& e) {
+                    std::cerr << "[ERROR] " << e.what() << std::endl;
+                }
+            }
+            start_http_server(acceptor, socket, logdir, keydir, server_name);
         });
 }
 
@@ -84,7 +90,7 @@ void HttpConnection::handleGET() {
 
     // /user1 -> logdir/user1.log
     auto const target_user = request_.target().substr(1).to_string(); // string_view::substr doesnt return std::string
-    auto const logfile_path = (logdir_ / fsp(target_user)).replace_extension(".log");
+    auto const logfile_path = (logdir_ / fs::path(target_user)).replace_extension(".log");
 
     // http basic auth (field authorization with value "Basic "+base64(user:pw))
     // only continue if credentials provided
@@ -154,7 +160,7 @@ void HttpConnection::handlePOST() {
 
     // /user1 -> logdir/user1.log
     auto const target_user = request_.target().substr(1).to_string(); // string_view::substr doesnt return std::string
-    auto const logfile_path = (logdir_ / fsp(target_user)).replace_extension(".log");
+    auto const logfile_path = (logdir_ / fs::path(target_user)).replace_extension(".log");
 
     // append to logfile
     std::ofstream logfile (logfile_path, std::ios_base::app);

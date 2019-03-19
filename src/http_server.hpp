@@ -14,10 +14,12 @@
 #include <boost/beast/http.hpp>
 #include <boost/asio.hpp>
 #include <iostream> // fail()
+#include <exception>
 
 void start_http_server(boost::asio::ip::tcp::acceptor& acceptor,
                         boost::asio::ip::tcp::socket& socket_,
                         std::filesystem::path const& logdir,
+                        std::filesystem::path const& keydir,
                         std::string const& server_name
 );
 
@@ -37,6 +39,7 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
     };
 
     std::filesystem::path logdir_;
+    std::filesystem::path keydir_;
     std::string server_name_;
 
     // asynchronously recieve a complete request message
@@ -87,18 +90,38 @@ public:
     HttpConnection(
         boost::asio::ip::tcp::socket socket, 
         std::filesystem::path const& logdir, 
+        std::filesystem::path const& keydir,
         std::string const& server_name) :
 
         socket_(std::move(socket)), // take ownership of socket
         logdir_(logdir),
+        keydir_(keydir),
         server_name_(server_name)
     {   
+        namespace fs = std::filesystem;
+        namespace http = boost::beast::http;
+        using tcp = boost::asio::ip::tcp;
+
         // ensure logdir exists
         std::error_code ec;
-        std::filesystem::create_directory(logdir_, ec); // does nothing if exists
+        fs::create_directory(logdir_, ec); // does nothing if exists
         if (ec) {
-            fail(ec, "HttpConnection() constructor");
-            throw; // dont construct obj in case of error
+            fail(ec, "HttpConnection() logdir creation");
+            http::write(socket_, ServerError("oops"));
+            socket_.shutdown(tcp::socket::shutdown_both);
+            throw std::invalid_argument(ec.message()); // dont construct obj in case of error
+        }
+
+        // ensure rsa keypair is present
+        if (!fs::exists(keydir_ / fs::path("private_key.pem"))) {
+            http::write(socket_, ServerError("oops"));
+            socket_.shutdown(tcp::socket::shutdown_both);
+            throw std::invalid_argument("no private_key.pem at given location: " + keydir_.string());
+        }
+        if (!fs::exists(keydir_ / fs::path("public_key.pem"))) {
+            http::write(socket_, ServerError("oops"));
+            socket_.shutdown(tcp::socket::shutdown_both);
+            throw std::invalid_argument("no public_key.pem at given location: " + keydir_.string());
         }
     };
 
