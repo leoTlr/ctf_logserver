@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
     tcp::socket sock {ioc};
 
     auto const logdir = filesystem::path("./logfiles/");
-    auto const keydir = filesystem::path("./keys/");
+    auto const keydir = filesystem::path("./rsa_keys/");
     start_http_server(acc, sock, logdir, keydir, "logserver v0.1");
 
     // register SIGINT and SIGTERM handler

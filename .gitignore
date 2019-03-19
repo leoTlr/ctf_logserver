@@ -1,12 +1,15 @@
 # ignore everything
 *
 
-# except src dir
+# except src and include dir
 !/src
+!/include
+!/include/jwt-cpp/
 
 # except src and header files
 !*.cpp
 !*.hpp
+!*.h
 
 # except this file
 !.gitignore
