@@ -1,8 +1,8 @@
 # ignore everything
 *
 
-# except directories
-!*/
+# except src dir
+!/src
 
 # except src and header files
 !*.cpp
@@ -11,8 +11,8 @@
 # except this file
 !.gitignore
 
-# except makefile
-!makefile
+# except cmake config
+!CMakeLists.txt
 
 # except test scripts
 !get_*.sh
