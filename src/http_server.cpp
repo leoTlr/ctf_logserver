@@ -18,18 +18,18 @@ void fail(std::error_code const& ec, std::string const& msg) {
 void start_http_server(tcp::acceptor& acceptor, 
                         tcp::socket& socket, 
                         fs::path const& logdir,
-                        fs::path const& keydir,
+                        std::pair<std::string,std::string> const& keypair,                        
                         std::string const& server_name) {
     acceptor.async_accept(socket, 
         [&](beast::error_code ec) {
             if (!ec) {
                 try {
-                    std::make_shared<HttpConnection>(std::move(socket), logdir, keydir, server_name)->start();
+                    std::make_shared<HttpConnection>(std::move(socket), logdir, keypair, server_name)->start();
                 } catch (std::invalid_argument& e) {
                     std::cerr << "[ERROR] " << e.what() << std::endl;
                 }
             }
-            start_http_server(acceptor, socket, logdir, keydir, server_name);
+            start_http_server(acceptor, socket, logdir, keypair, server_name);
         });
 }
 
@@ -178,6 +178,12 @@ void HttpConnection::handlePOST() {
     logfile.close();
 
     // TODO create JWT and send back as res
+    auto alg = jwt::algorithm::rs256 {pub_key_, priv_key_, "", ""};
+    auto token = jwt::create()
+        .set_type("JWT")
+        .set_issuer(server_name_)
+        .set_audience(target_user)
+        .sign(alg);
 
     return writeResponse(http::response<http::dynamic_body>());
 }

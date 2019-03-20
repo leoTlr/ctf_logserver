@@ -1,8 +1,10 @@
 #include <iostream>
 #include <memory>
 #include <filesystem>
+#include <fstream>
 
 #include "http_server.hpp"
+#include "../include/jwt-cpp/jwt.h"
 
 using namespace std;
 
@@ -10,6 +12,70 @@ namespace beast = boost::beast;         // from <boost/beast.hpp>
 namespace http = beast::http;           // from <boost/beast/http.hpp>
 namespace net = boost::asio;            // from <boost/asio.hpp>
 using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
+
+// read key pair from provided paths into strings (required by jwt implementation)
+// exits on error
+// pair.first -> public key
+// pair.second -> private_key
+pair<string, string> read_rsa_keys(filesystem::path const& pub_key, filesystem::path const& priv_key) {
+    
+    if (!filesystem::exists(priv_key) || !filesystem::exists(pub_key)) {
+        cerr << "could not find provided key files" << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    pair<string, string> keypair;
+    array<filesystem::path, 2> keyfile_paths {pub_key, priv_key};
+    for (int i=0; i<2; i++) {
+
+        auto path = keyfile_paths[i];
+        std::ifstream keyfile (path);
+
+        if (!keyfile) {
+            cerr << "[ERROR] could not open \"" << path << "\"" << endl;
+            exit(EXIT_FAILURE); 
+        }
+
+        const string pattern_private_key ("-----BEGIN PRIVATE KEY-----");
+        const string pattern_public_key ("-----BEGIN PUBLIC KEY-----");
+
+        keyfile.seekg(0, std::ios::end);
+        size_t fsize = keyfile.tellg();
+        keyfile.seekg(0);
+
+        string first_line;
+        first_line.resize(pattern_private_key.size()+1);
+        keyfile.getline(first_line.data(), first_line.size());
+
+        if (first_line.find(pattern_public_key) == 0) {
+            keyfile.seekg(0); // read from start again to get full file
+            keypair.first.resize(fsize);
+            keyfile.read(keypair.first.data(), fsize);
+        }
+        else if (first_line.find(pattern_private_key) == 0) {
+            keyfile.seekg(0);
+            keypair.second.resize(fsize);
+            keyfile.read(keypair.second.data(), fsize);
+        }
+        else {
+            cerr << "[ERROR] rsa key malformed: \"" << path << "\"" << endl;
+            keyfile.close();
+            exit(EXIT_FAILURE);
+        }
+        keyfile.close();
+
+    }
+
+    // test if jwt implementation actually takes the provided keys
+    try {
+        jwt::algorithm::rs256 {keypair.first, keypair.second, "", ""};
+    } catch (jwt::rsa_exception& e) {
+        cerr << "[ERROR] rsa keys malformed: " << e.what() << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    return keypair;
+}
 
 int main(int argc, char** argv) {
 
@@ -23,8 +89,12 @@ int main(int argc, char** argv) {
     tcp::socket sock {ioc};
 
     auto const logdir = filesystem::path("./logfiles/");
-    auto const keydir = filesystem::path("./rsa_keys/");
-    start_http_server(acc, sock, logdir, keydir, "logserver v0.1");
+    auto const pub_key = filesystem::path("./rsa_keys/public_key.pem");
+    auto const priv_key = filesystem::path("./rsa_keys/private_key.pem");
+
+    pair<string,string> keypair = read_rsa_keys(pub_key, priv_key);
+
+    start_http_server(acc, sock, logdir, keypair, "logserver v0.1");
 
     // register SIGINT and SIGTERM handler
     net::signal_set signals {ioc, SIGINT, SIGTERM};
