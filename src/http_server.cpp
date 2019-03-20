@@ -185,7 +185,7 @@ void HttpConnection::handlePOST() {
         .set_audience(target_user)
         .sign(alg);
 
-    return writeResponse(http::response<http::dynamic_body>());
+    return writeResponse(PostOkResponse(token));
 }
 
 // close conn after wait

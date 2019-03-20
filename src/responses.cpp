@@ -67,3 +67,13 @@ http::response<http::file_body> HttpConnection::LogfileResponse(fsp const& full_
 
     return res;
 }
+
+// 200 OK; content_type application/jwt; body=jwtstring
+http::response<http::dynamic_body> HttpConnection::PostOkResponse(std::string const& jwt) const {
+    http::response<http::dynamic_body> res;
+    res.set(http::field::server, server_name_);
+    res.set(http::field::content_type, "application/jwt;");
+    beast::ostream(res.body()) << jwt << std::endl;
+    res.set(http::field::content_length, jwt.size());
+    return res;
+}
