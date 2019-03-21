@@ -191,7 +191,6 @@ int HttpConnection::writeLogfile(fs::path const& full_path) const {
         auto buf_last = buf_start + net::buffer_size(part);
         std::copy(buf_start, buf_last, std::ostream_iterator<char>(logfile));
     }
-    logfile << std::endl;
     
     return 0;
 }
