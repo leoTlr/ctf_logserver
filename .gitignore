@@ -20,3 +20,4 @@
 # except test scripts
 !get_*.sh
 !post_*.sh
+!post_*.py
