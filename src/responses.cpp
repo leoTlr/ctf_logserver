@@ -77,3 +77,13 @@ http::response<http::dynamic_body> HttpConnection::PostOkResponse(std::string co
     res.set(http::field::content_length, jwt.size());
     return res;
 }
+
+// 200 OK with public key as base64 in body
+http::response<http::string_body> HttpConnection::PubKeyResponse() const {
+    http::response<http::string_body> res;
+    res.set(http::field::server, server_name_);
+    res.set(http::field::content_type, "text/plain");
+    res.body() = pub_key_;
+    res.prepare_payload();
+    return res;
+}

@@ -87,6 +87,9 @@ void HttpConnection::handleGET() {
         return writeResponse(BadRequest("invalid request target"));
     }
 
+    if (request_.target() == "/pubkey")
+        return writeResponse(PubKeyResponse());
+
     // /user1 -> logdir/user1.log
     auto const target_user = request_.target().substr(1).to_string(); // string_view::substr doesnt return std::string
     auto const logfile_path = (logdir_ / fs::path(target_user)).replace_extension(".log");
