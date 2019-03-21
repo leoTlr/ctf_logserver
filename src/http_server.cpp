@@ -1,6 +1,8 @@
 #include <boost/beast/core/detail/base64.hpp> // caution: could move somwhere else
+#include <boost/optional.hpp>
 #include <exception> // std::out_of_range for http::basic_fields::at
 #include <fstream>
+#include <set> // verifyJWT()
 
 #include "http_server.hpp"
 #include "../include/jwt-cpp/jwt.h"
@@ -151,8 +153,6 @@ int HttpConnection::getBasicAuthCredentials(std::string& auth_user, std::string&
 }
 
 void HttpConnection::handlePOST() {
-    // todo auth
-
     // todo: write encrypted
     
     if (request_.body().size() < 1)
@@ -162,30 +162,54 @@ void HttpConnection::handlePOST() {
     auto const target_user = request_.target().substr(1).to_string(); // string_view::substr doesnt return std::string
     auto const logfile_path = (logdir_ / fs::path(target_user)).replace_extension(".log");
 
-    // append to logfile
-    std::ofstream logfile (logfile_path, std::ios_base::app);
+    // if there already is an entry for requested user, valid token needs to be provided
+    if (fs::exists(logfile_path)) {
+
+        // verify token, write file if ok, write response
+        boost::optional<boost::string_view> token = extractJWT();
+        if (!token)
+            return writeResponse(Unauthorized("trying to append existing log but no token provided"));
+
+        if (verifyJWT(token.get().to_string(), target_user))
+            return writeResponse(PostOkResponse(token.get().to_string()));
+        else
+            return writeResponse(Unauthorized("invalid token provided"));
+    } 
+    else {
+        // write file, generate new token, write response
+
+        if (writeLogfile(logfile_path) < 0)
+            return writeResponse(ServerError("could not open logfile"));            
+
+        auto alg = jwt::algorithm::rs256 {pub_key_, priv_key_, "", ""};
+        auto new_token = jwt::create()
+            .set_type("JWT")
+            .set_issuer(server_name_)
+            .set_audience(target_user)
+            .sign(alg);
+
+        return writeResponse(PostOkResponse(new_token));
+    }
+    assert(false); // should already have returned in if/else
+}
+
+// append request body to logfile
+// returns 0 on success or -1 if file couldnot be opened
+int HttpConnection::writeLogfile(fs::path const& full_path) const {
+    
+    std::ofstream logfile (full_path, std::ios_base::app);
     if (!logfile)
-        return writeResponse(ServerError("could not open logfile"));
+        return -1;
     
     // TODO: find more elegant way
-    // write body into logfile
     for (auto part : request_.body().data()) {
         auto buf_start = net::buffer_cast<const char*>(part);
         auto buf_last = buf_start + net::buffer_size(part);
         std::copy(buf_start, buf_last, std::ostream_iterator<char>(logfile));
     }
     logfile << std::endl;
-    logfile.close();
-
-    // TODO create JWT and send back as res
-    auto alg = jwt::algorithm::rs256 {pub_key_, priv_key_, "", ""};
-    auto token = jwt::create()
-        .set_type("JWT")
-        .set_issuer(server_name_)
-        .set_audience(target_user)
-        .sign(alg);
-
-    return writeResponse(PostOkResponse(token));
+    
+    return 0;
 }
 
 // close conn after wait
@@ -197,4 +221,44 @@ void HttpConnection::checkDeadline() {
             if (!ec)
                 self->socket_.close(ec);
         });
+}
+
+// get JWT string out of request header
+boost::optional<boost::string_view> HttpConnection::extractJWT() const {
+
+    try {
+        boost::string_view token_encoded = request_.at(http::field::authorization);
+
+        if (beast::iequals(token_encoded.substr(0,6), "Bearer")) {
+            token_encoded.remove_prefix(7);
+            return boost::optional<boost::string_view>(token_encoded);
+        } else return boost::none; // wrong authentification method
+
+    } catch (std::out_of_range&) { // no Authorization header field
+        return boost::none;
+    }
+}
+
+// take token string (encoded) and verify signature
+// return true on success, false otherwise
+bool HttpConnection::verifyJWT(std::string const& token, std::string const& requested_user) const {
+
+    auto token_decoded = jwt::decode(token);
+    auto alg_used = token_decoded.get_algorithm();
+
+    std::set<std::string> audience;
+    audience.insert(requested_user);
+    auto verifier = jwt::verify()
+        .allow_algorithm(jwt::algorithm::rs256{pub_key_, priv_key_})
+        .with_issuer(server_name_)
+        .with_audience(audience);
+
+    try {
+        verifier.verify(token_decoded);
+    } catch (jwt::token_verification_exception& e) {
+        std::cerr << "verifyJWT(): " << e.what() << std::endl;
+        return false;
+    }
+        
+    return true;
 }
