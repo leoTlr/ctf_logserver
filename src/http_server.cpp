@@ -67,7 +67,6 @@ void HttpConnection::processRequest() {
         case http::verb::get: // respond with logentries for requested user
             return handleGET(); // gather contents for body
         case http::verb::post: // add provided logentries for user
-            // todo: auth
             return handlePOST();
         case http::verb::head: // (maybe last logfile update timepoint for  req. user)
             // falltrhugh until implemented
@@ -168,7 +167,7 @@ void HttpConnection::handlePOST() {
         // verify token, write file if ok, write response
         boost::optional<boost::string_view> token = extractJWT();
         if (!token)
-            return writeResponse(Unauthorized("trying to append existing log but no token provided"));
+            return writeResponse(Unauthorized("trying to append existing log but no or malformed token provided"));
 
         if (verifyJWT(token.get().to_string(), target_user))
             return writeResponse(PostOkResponse(token.get().to_string()));
@@ -242,9 +241,15 @@ boost::optional<boost::string_view> HttpConnection::extractJWT() const {
 // take token string (encoded) and verify signature
 // return true on success, false otherwise
 bool HttpConnection::verifyJWT(std::string const& token, std::string const& requested_user) const {
-
-    auto token_decoded = jwt::decode(token);
-    auto alg_used = token_decoded.get_algorithm();
+    
+    std::unique_ptr<jwt::decoded_jwt> token_decoded;
+    try {
+        token_decoded = std::make_unique<jwt::decoded_jwt>(jwt::decode(token));
+    } catch (std::runtime_error& e) {
+        std::cerr << "jwt::decode(): " << e.what() << std::endl;
+        return false;
+    }
+    auto alg_used = token_decoded->get_algorithm();
 
     std::set<std::string> audience;
     audience.insert(requested_user);
@@ -254,11 +259,11 @@ bool HttpConnection::verifyJWT(std::string const& token, std::string const& requ
         .with_audience(audience);
 
     try {
-        verifier.verify(token_decoded);
+        verifier.verify(*token_decoded);
     } catch (jwt::token_verification_exception& e) {
         std::cerr << "verifyJWT(): " << e.what() << std::endl;
         return false;
     }
-        
+    
     return true;
 }
