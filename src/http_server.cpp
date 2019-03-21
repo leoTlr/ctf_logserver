@@ -79,8 +79,6 @@ void HttpConnection::processRequest() {
 // GET /user1 HTTP/1.1\r\n\r\n -> send /logdir/user1.log
 void HttpConnection::handleGET() {
 
-    // todo auth with JWT
-
     // check if target of type /user
     if (request_.target().empty() || request_.target()[0] != '/' || 
         request_.target().find("..") != beast::string_view::npos || // prevent directory traversal
@@ -93,30 +91,17 @@ void HttpConnection::handleGET() {
     auto const target_user = request_.target().substr(1).to_string(); // string_view::substr doesnt return std::string
     auto const logfile_path = (logdir_ / fs::path(target_user)).replace_extension(".log");
 
-    // http basic auth (field authorization with value "Basic "+base64(user:pw))
-    // only continue if credentials provided
-    std::string auth_user;
-    std::string auth_pass;
-    switch (getBasicAuthCredentials(auth_user, auth_pass)) {
-        case 0: // success, just continue
-            break;
-        case -1: 
-            return writeResponse(Unauthorized("no authentification method provided"));
-        case -2: // todo: accept and handle JWT
-            return writeResponse(BadRequest("bad authentication method"));
-        case -3:
-            return writeResponse(BadRequest("authentication credentials malformed"));
-        default: assert(false); // should not happen
-    }
-
-    // todo: match pw (with?)
-    if (auth_user != target_user) {
-        return writeResponse(Unauthorized("provided user has no permission for requested logfile"));
-    }
-
     // LogfileResponse() requires existing path
     if (!std::filesystem::exists(logfile_path))
         return writeResponse(NotFound(request_.target()));
+
+    // verify JWT, write response with logfile if ok
+    boost::optional<boost::string_view> token = extractJWT();
+    if (!token)
+        return writeResponse(Unauthorized("missing or malformed token"));
+    if (!verifyJWT(token.get().to_string(), target_user)) {
+        return writeResponse(Unauthorized("invalid token provided"));
+    }
 
     // construct and send response containing requested logfile
     return writeResponse(LogfileResponse(logfile_path));
