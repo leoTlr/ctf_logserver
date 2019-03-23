@@ -157,8 +157,13 @@ void HttpConnection::handlePOST() {
         if (!token)
             return writeResponse(Unauthorized("trying to append existing log but no or malformed token provided"));
 
-        if (verifyJWT(token.get().to_string(), target_user))
-            return writeResponse(PostOkResponse(token.get().to_string()));
+        if (verifyJWT(token.get().to_string(), target_user)) {
+
+            if (writeLogfile(logfile_path) < 0)
+                return writeResponse(ServerError("could not open logfile")); 
+                   
+            return writeResponse(PostOkResponse(token.get().to_string()));  
+        } 
         else
             return writeResponse(Unauthorized("invalid token provided"));
     } 
