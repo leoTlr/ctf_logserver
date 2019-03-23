@@ -255,6 +255,8 @@ bool HttpConnection::verifyJWT(std::string const& token, std::string const& requ
     } catch (jwt::token_verification_exception& e) {
         std::cerr << "verifyJWT(): " << e.what() << std::endl;
         return false;
+    } catch (jwt::signature_verification_exception& e) {
+        return false;
     }
     
     return true;
