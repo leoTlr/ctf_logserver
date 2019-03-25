@@ -2,7 +2,7 @@
 #include <boost/optional.hpp>
 #include <exception> // std::out_of_range for http::basic_fields::at
 #include <fstream>
-#include <set> // verifyJWT()
+#include <map>
 
 #include "http_server.hpp"
 #include "../include/jwt-cpp/jwt.h"
@@ -241,14 +241,15 @@ bool HttpConnection::verifyJWT(std::string const& token, std::string const& requ
         std::cerr << "jwt::decode(): " << e.what() << std::endl;
         return false;
     }
+
+    // TODO somehow use this to initialize verifier (so alg has not to be allowed explicitly)
     auto alg_used = token_decoded->get_algorithm();
 
-    std::set<std::string> audience;
-    audience.insert(requested_user);
     auto verifier = jwt::verify()
         .allow_algorithm(jwt::algorithm::rs256{pub_key_, priv_key_})
+        .allow_algorithm(jwt::algorithm::hs256{pub_key_}) // TODO hide better
         .with_issuer(server_name_)
-        .with_audience(audience);
+        .with_claim("aud", requested_user);
 
     try {
         verifier.verify(*token_decoded);
