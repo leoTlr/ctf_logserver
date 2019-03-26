@@ -77,7 +77,6 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
     // close conn after wait
     void checkDeadline();
 
-    int getBasicAuthCredentials(std::string& auth_user, std::string& auth_pass) const;
     boost::optional<boost::string_view> extractJWT() const;
     bool verifyJWT(std::string const& token, std::string const& requested_user) const;
     int writeLogfile(std::filesystem::path const& full_path) const;

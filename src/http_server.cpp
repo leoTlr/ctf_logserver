@@ -110,35 +110,6 @@ void HttpConnection::handleGET() {
     return writeResponse(LogfileResponse(logfile_path));
 }
 
-/*  http basic auth (field authorization with value "Basic "+base64(user:pw))
-    returns 0 and fills auth_user and auth_pass if successful
-    -1 Header field Authentification not present
-    -2 auth method != Basic
-    -3 auth credentials malformed    */
-int HttpConnection::getBasicAuthCredentials(std::string& auth_user, std::string& auth_pass) const {
-
-    try {
-        auto b64_credentials = request_.at(http::field::authorization);
-        if (b64_credentials.find("Basic ") || b64_credentials.find("basic "))
-            b64_credentials.remove_prefix(6);
-        else return -2; // auth method != Basic
-
-        // WARNING beast::detail namespace considered private -> could move somwhere else or disappear
-        auto str_credentials = beast::detail::base64_decode(b64_credentials.to_string());
-
-        std::size_t colon_pos = str_credentials.find(':');
-        if (colon_pos != std::string::npos) {
-            auth_user = str_credentials.substr(0, colon_pos);
-            auth_pass = str_credentials.substr(colon_pos+1);
-        } else return -3; // auth credentials malformed
-
-    } catch (std::out_of_range& e) {
-        return -1; // no Authentification field present
-    }
-
-    return 0;
-}
-
 void HttpConnection::handlePOST() {
     // todo: write encrypted
     
