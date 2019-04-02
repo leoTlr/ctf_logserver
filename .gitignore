@@ -4,7 +4,7 @@
 # except src and include dir
 !/src
 !/include
-!/include/jwt-cpp/
+!/include/cpp-jwt/
 
 # except src and header files
 !*.cpp

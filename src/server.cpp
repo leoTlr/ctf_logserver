@@ -4,7 +4,7 @@
 #include <fstream>
 
 #include "http_server.hpp"
-#include "../include/jwt-cpp/jwt.h"
+#include "../include/cpp-jwt/jwt.hpp"
 
 using namespace std;
 
@@ -68,9 +68,18 @@ pair<string, string> read_rsa_keys(filesystem::path const& pub_key, filesystem::
 
     // test if jwt implementation actually takes the provided keys
     try {
-        jwt::algorithm::rs256 {keypair.first, keypair.second, "", ""};
-    } catch (jwt::rsa_exception& e) {
-        cerr << "[ERROR] rsa keys malformed: " << e.what() << endl;
+        namespace jwtp = jwt::params;
+
+        auto token = jwt::jwt_object {jwtp::algorithm("RS256"), jwtp::secret(keypair.second)};
+        auto token_str = token.signature();
+
+        auto decoded = jwt::decode(token_str, jwtp::algorithms({"RS256"}), jwtp::secret(keypair.first));
+
+    } catch (jwt::SigningError const& e){
+        cerr << "[ERROR] rsa priv key malformed: " << e.what() << endl;
+        exit(EXIT_FAILURE);
+    } catch (jwt::DecodeError const& e) {
+        cerr << "[ERROR] rsa pub key malformed: " << e.what() << endl;
         exit(EXIT_FAILURE);
     }
 

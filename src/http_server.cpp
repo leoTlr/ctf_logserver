@@ -6,7 +6,7 @@
 #include <set>
 
 #include "http_server.hpp"
-#include "../include/jwt-cpp/jwt.h"
+#include "../include/cpp-jwt/jwt.hpp"
 
 namespace beast = boost::beast;         // from <boost/beast.hpp>
 namespace http = beast::http;           // from <boost/beast/http.hpp>
@@ -145,14 +145,15 @@ void HttpConnection::handlePOST() {
         if (writeLogfile(logfile_path) < 0)
             return writeResponse(ServerError("could not open logfile"));            
 
-        auto alg = jwt::algorithm::rs256 {pub_key_, priv_key_, "", ""};
-        auto new_token = jwt::create()
-            .set_type("JWT")
-            .set_issuer(server_name_)
-            .set_audience(target_user)
-            .sign(alg);
+        auto new_token = jwt::jwt_object {
+            jwt::params::algorithm("RS256"),
+            jwt::params::secret(priv_key_)
+        };
 
-        return writeResponse(PostOkResponse(new_token));
+        new_token.add_claim("iss", server_name_);
+        new_token.add_claim("aud", target_user);
+
+        return writeResponse(PostOkResponse(new_token.signature()));
     }
     assert(false); // should already have returned in if/else
 }
@@ -205,32 +206,33 @@ boost::optional<boost::string_view> HttpConnection::extractJWT() const {
 // take token string (encoded) and verify signature
 // return true on success, false otherwise
 bool HttpConnection::verifyJWT(std::string const& token, std::string const& requested_user) const {
-    
-    std::unique_ptr<jwt::decoded_jwt> token_decoded;
-    try {
-        token_decoded = std::make_unique<jwt::decoded_jwt>(jwt::decode(token));
-    } catch (std::runtime_error& e) {
-        std::cerr << "jwt::decode(): " << e.what() << std::endl;
-        return false;
-    }
-
-    // TODO somehow use this to initialize verifier (so alg has not to be allowed explicitly)
-    auto alg_used = token_decoded->get_algorithm();
-
-    std::set<std::string> audience;
-    audience.insert(requested_user);
-    auto verifier = jwt::verify()
-        .allow_algorithm(jwt::algorithm::rs256{pub_key_, priv_key_})
-        .allow_algorithm(jwt::algorithm::hs256{pub_key_}) // TODO hide better
-        .with_issuer(server_name_)
-        .with_audience(audience);
 
     try {
-        verifier.verify(*token_decoded);
-    } catch (jwt::token_verification_exception& e) {
-        std::cerr << "verifyJWT(): " << e.what() << std::endl;
+        // get alg from token header
+        auto header = jwt::jwt_header{token};
+        auto alg_used = jwt::alg_to_str(header.algo());
+        
+        if (alg_used == jwt::string_view{"NONE"})
+            return false;
+
+        std::error_code ec;
+        auto decoded_token = jwt::decode(
+                jwt::string_view(token), 
+                jwt::params::algorithms({alg_used}), 
+                ec,
+                jwt::params::secret(pub_key_),
+                jwt::params::issuer(server_name_),
+                jwt::params::aud(requested_user), // request target has to match audience
+                jwt::params::verify(true));
+
+        if (ec) // invalid issuer or audience
+            return false;
+
+    } catch (jwt::SignatureFormatError const& e) { // malformed sig
         return false;
-    } catch (jwt::signature_verification_exception& e) {
+    } catch (jwt::DecodeError const& e) {
+        return false;
+    } catch (jwt::VerificationError const& e) { // invalid sig
         return false;
     }
     
