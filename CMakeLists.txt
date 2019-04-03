@@ -8,7 +8,7 @@ add_executable(server
 	src/http_server.cpp
 	src/http_server.hpp
 	src/responses.cpp
-	include/cpp-jwt/jwt.hpp # https://github.com/arun11299/cpp-jwt
+	include/cpp-jwt/jwt/jwt.hpp # https://github.com/arun11299/cpp-jwt
 )
 
 find_package(OpenSSL REQUIRED) # needed by jwt-cpp

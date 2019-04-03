@@ -24,7 +24,7 @@ SOFTWARE.
 
 #include <iterator>
 #include <type_traits>
-#include "jwt/string_view.hpp"
+#include "../string_view.hpp"
 
 namespace jwt {
 namespace detail {
