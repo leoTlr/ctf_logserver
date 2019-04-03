@@ -6,7 +6,7 @@
 #include <set>
 
 #include "http_server.hpp"
-#include "../include/cpp-jwt/jwt.hpp"
+#include "../include/cpp-jwt/jwt/jwt.hpp"
 
 namespace beast = boost::beast;         // from <boost/beast.hpp>
 namespace http = beast::http;           // from <boost/beast/http.hpp>

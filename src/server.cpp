@@ -4,7 +4,7 @@
 #include <fstream>
 
 #include "http_server.hpp"
-#include "../include/cpp-jwt/jwt.hpp"
+#include "../include/cpp-jwt/jwt/jwt.hpp"
 
 using namespace std;
 
