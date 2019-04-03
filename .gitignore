@@ -1,16 +1,12 @@
 # ignore everything
 *
 
-# except src and include dir
-!/src
-!/include
-!/include/cpp-jwt/
-!/include/cpp-jwt/*
+# But descend into directories
+!*/
 
-# except src and header files
-!*.cpp
-!*.hpp
-!*.h
+# recursively whitelist src and include dir
+!/src/**
+!/include/cpp-jwt/jwt/**
 
 # except this file
 !.gitignore
