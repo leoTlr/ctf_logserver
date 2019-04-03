@@ -5,6 +5,7 @@
 !/src
 !/include
 !/include/cpp-jwt/
+!/include/cpp-jwt/*
 
 # except src and header files
 !*.cpp
