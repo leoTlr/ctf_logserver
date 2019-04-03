@@ -15,7 +15,6 @@
 #include <boost/asio.hpp>
 #include <iostream> // fail()
 #include <exception>
-#include "../deps/cpp-jwt/include/jwt/jwt.hpp"
 
 void start_http_server(boost::asio::ip::tcp::acceptor& acceptor,
                         boost::asio::ip::tcp::socket& socket_,
