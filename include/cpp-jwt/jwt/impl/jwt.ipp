@@ -607,6 +607,7 @@ void jwt_object::set_decode_params(DecodeParams& dparams, params::detail::valida
 template <typename DecodeParams>
 void jwt_object::set_decode_params(DecodeParams& dparams)
 {
+  (void) dparams; // prevent gcc -Wunused-param
   return;
 }
 
