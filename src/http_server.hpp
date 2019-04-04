@@ -79,6 +79,8 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
 
     boost::optional<boost::string_view> extractJWT() const;
     bool verifyJWT(std::string const& token, std::string const& requested_user) const;
+    int entryQuery() const;
+    boost::string_view getTargetUser() const;
     int writeLogfile(std::filesystem::path const& full_path) const;
 
     // misc

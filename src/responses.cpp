@@ -16,14 +16,13 @@ http::response<http::dynamic_body> HttpConnection::BadRequest(std::string const&
     return res;
 }
 
-http::response<http::dynamic_body> HttpConnection::NotFound(boost::string_view target) const {
+http::response<http::dynamic_body> HttpConnection::NotFound(boost::string_view target_user) const {
     http::response<http::dynamic_body> res;
     res.result(http::status::not_found);
     res.set(http::field::server, server_name_);
     res.set(http::field::content_type, "text/plain");
-    target.remove_prefix(1);
     beast::ostream(res.body()) 
-        << "no logs found for user " << "'" << target << "'" << std::endl;
+        << "no logs found for user " << "'" << target_user << "'" << std::endl;
     res.set(http::field::content_length, res.body().size());
     return res;
 }

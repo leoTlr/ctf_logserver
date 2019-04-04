@@ -76,6 +76,14 @@ void HttpConnection::processRequest() {
     }
 }
 
+// /user?query=foo -> user
+boost::string_view HttpConnection::getTargetUser() const {
+    size_t pos = 0;
+    if ((pos = request_.target().find('?')) == boost::string_view::npos)
+        return request_.target().substr(1);
+    return request_.target().substr(1, pos - 1);
+}
+
 // gather information for response body
 // GET /user1 HTTP/1.1\r\n\r\n -> send /logdir/user1.log
 void HttpConnection::handleGET() {
@@ -91,13 +99,15 @@ void HttpConnection::handleGET() {
     if (request_.target() == "/pubkey")
         return writeResponse(PubKeyResponse());
 
-    // /user1 -> logdir/user1.log
-    auto const target_user = request_.target().substr(1).to_string(); // string_view::substr doesnt return std::string
+    // /user1?query=foo -> logdir/user1.log
+    auto const target_user = getTargetUser().to_string();
+    std::cout << target_user << std::endl;
+    std::cout << target_user << "  " << request_.target().find('?') << std:: endl;
     auto const logfile_path = (logdir_ / fs::path(target_user)).replace_extension(".log");
 
     // LogfileResponse() requires existing path
     if (!std::filesystem::exists(logfile_path))
-        return writeResponse(NotFound(request_.target()));
+        return writeResponse(NotFound(target_user));
 
     // verify JWT, write response with logfile if ok
     boost::optional<boost::string_view> token = extractJWT();
@@ -118,7 +128,7 @@ void HttpConnection::handlePOST() {
         return writeResponse(BadRequest("empty message"));
 
     // /user1 -> logdir/user1.log
-    auto const target_user = request_.target().substr(1).to_string(); // string_view::substr doesnt return std::string
+    auto const target_user = getTargetUser().to_string();
     auto const logfile_path = (logdir_ / fs::path(target_user)).replace_extension(".log");
 
     // if there already is an entry for requested user, valid token needs to be provided
