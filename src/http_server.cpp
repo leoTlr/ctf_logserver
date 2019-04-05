@@ -2,8 +2,6 @@
 #include <boost/optional.hpp>
 #include <exception> // std::out_of_range for http::basic_fields::at
 #include <fstream>
-#include <map>
-#include <set>
 
 #include "http_server.hpp"
 #include "../include/cpp-jwt/jwt/jwt.hpp"
@@ -76,6 +74,39 @@ void HttpConnection::processRequest() {
     }
 }
 
+// return X in /request_target?entires=X&foo=bar
+// return 0 if no entries query or entries=0
+// return -1 if no query
+// return -2 if bad value
+int HttpConnection::entryQuery() const {
+    size_t query_pos = 0, separator_pos = 0;
+
+    if ((query_pos = request_.target().find('?')) == boost::string_view::npos)
+        return -1; // no '?' in target -> no queries to parse
+
+    do  {
+        separator_pos = request_.target().find('=', query_pos);
+        boost::string_view query = request_.target().substr(query_pos + 1, separator_pos - query_pos - 1);
+
+        if (beast::iequals(query, "entries")) {
+
+            size_t len_str_val = request_.target().find('&', separator_pos) - separator_pos;
+            const auto val = request_.target().substr(separator_pos + 1, len_str_val);
+
+            int nr_entries = 0;
+            try {
+                nr_entries = std::stoi(val.to_string());
+            } catch (...) {
+                return -2; // str->int conversion failed
+            }
+            // val < 0 -> invalid val
+            return nr_entries >= 0 ? nr_entries : -2;
+        } 
+    } while ((query_pos = request_.target().find('&', query_pos + 1)) != boost::string_view::npos);    
+
+    return 0;
+}
+
 // /user?query=foo -> user
 boost::string_view HttpConnection::getTargetUser() const {
     size_t pos = 0;
@@ -101,8 +132,6 @@ void HttpConnection::handleGET() {
 
     // /user1?query=foo -> logdir/user1.log
     auto const target_user = getTargetUser().to_string();
-    std::cout << target_user << std::endl;
-    std::cout << target_user << "  " << request_.target().find('?') << std:: endl;
     auto const logfile_path = (logdir_ / fs::path(target_user)).replace_extension(".log");
 
     // LogfileResponse() requires existing path
@@ -240,7 +269,7 @@ bool HttpConnection::verifyJWT(std::string const& token, std::string const& requ
 
     } catch (jwt::SignatureFormatError const& e) { // malformed sig
         return false;
-    } catch (jwt::DecodeError const& e) {
+    } catch (jwt::DecodeError const& e) { // malformed token
         return false;
     } catch (jwt::VerificationError const& e) { // invalid sig
         return false;
