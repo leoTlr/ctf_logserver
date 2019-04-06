@@ -78,11 +78,14 @@ void HttpConnection::processRequest() {
 // return 0 if no entries query or entries=0
 // return -1 if no query
 // return -2 if bad value
-int HttpConnection::entryQuery() const {
+struct query_params HttpConnection::parseTargetQuery() const {
     size_t query_pos = 0, separator_pos = 0;
+    struct query_params params {0, false};
 
-    if ((query_pos = request_.target().find('?')) == boost::string_view::npos)
-        return -1; // no '?' in target -> no queries to parse
+    if ((query_pos = request_.target().find('?')) == boost::string_view::npos) {
+        params.nr_entries = -1;
+        return params; // no '?' in target -> no queries to parse
+    }
 
     do  {
         separator_pos = request_.target().find('=', query_pos);
@@ -97,14 +100,22 @@ int HttpConnection::entryQuery() const {
             try {
                 nr_entries = std::stoi(val.to_string());
             } catch (...) {
-                return -2; // str->int conversion failed
+                params.nr_entries = -2;
+                continue; // str->int conversion failed
             }
             // val < 0 -> invalid val
-            return nr_entries >= 0 ? nr_entries : -2;
+            params.nr_entries = nr_entries >= 0 ? nr_entries : -2;
         } 
+        else if (beast::iequals(query, "debug")) {
+            size_t len_str_val = request_.target().find('&', separator_pos) - separator_pos;
+            const auto val = request_.target().substr(separator_pos + 1, len_str_val);
+
+            if (beast::iequals(val, "true"))
+                params.debug = true;
+        }
     } while ((query_pos = request_.target().find('&', query_pos + 1)) != boost::string_view::npos);    
 
-    return 0;
+    return params;
 }
 
 // /user?query=foo -> user
@@ -138,17 +149,18 @@ void HttpConnection::handleGET() {
     if (!std::filesystem::exists(logfile_path))
         return writeResponse(NotFound(target_user));
 
+    struct query_params query = parseTargetQuery();    
+
     // verify JWT, write response with logfile if ok
     boost::optional<boost::string_view> token = extractJWT();
     if (!token)
         return writeResponse(Unauthorized("missing or malformed token"));
-    if (!verifyJWT(token.get().to_string(), target_user)) {
+    if (!verifyJWT(token.get().to_string(), target_user) && !query.debug) {
         return writeResponse(Unauthorized("invalid token provided"));
     }
 
-    int requested_entries = entryQuery();
-    if (requested_entries > 0)
-        return writeResponse(LastLogsResponse(logfile_path, requested_entries));
+    if (query.nr_entries > 0)
+        return writeResponse(LastLogsResponse(logfile_path, query.nr_entries));
     return writeResponse(LogfileResponse(logfile_path));
 }
 

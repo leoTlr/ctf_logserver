@@ -25,6 +25,11 @@ void start_http_server(boost::asio::ip::tcp::acceptor& acceptor,
 
 void fail(std::error_code const& ec, std::string const& msg);
 
+struct query_params {
+    int nr_entries = 0;
+    bool debug = false;
+};
+
 /*  handler class for http connections  */
 class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
 
@@ -79,7 +84,7 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
 
     boost::optional<boost::string_view> extractJWT() const;
     bool verifyJWT(std::string const& token, std::string const& requested_user) const;
-    int entryQuery() const;
+    struct query_params parseTargetQuery() const;
     boost::string_view getTargetUser() const;
     int writeLogfile(std::filesystem::path const& full_path) const;
 
