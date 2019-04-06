@@ -146,7 +146,9 @@ void HttpConnection::handleGET() {
         return writeResponse(Unauthorized("invalid token provided"));
     }
 
-    // construct and send response containing requested logfile
+    int requested_entries = entryQuery();
+    if (requested_entries > 0)
+        return writeResponse(LastLogsResponse(logfile_path, requested_entries));
     return writeResponse(LogfileResponse(logfile_path));
 }
 

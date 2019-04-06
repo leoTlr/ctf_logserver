@@ -90,6 +90,7 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
     boost::beast::http::response<boost::beast::http::dynamic_body> ServerError(std::string const& reason) const;
     boost::beast::http::response<boost::beast::http::dynamic_body> Unauthorized(std::string const& reason) const;
     boost::beast::http::response<boost::beast::http::file_body> LogfileResponse(std::filesystem::path const& full_path) const;
+    boost::beast::http::response<boost::beast::http::dynamic_body> LastLogsResponse(std::filesystem::path const& full_path, size_t nr_lines) const;
     boost::beast::http::response<boost::beast::http::dynamic_body> PostOkResponse(std::string const& jwt) const;
     boost::beast::http::response<boost::beast::http::string_body> PubKeyResponse() const;
 
