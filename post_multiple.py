@@ -5,6 +5,7 @@
 
 import http.client
 from sys import argv, exit
+from itertools import count
 
 def usage():
     print("usage: {} user [times=2]".format(argv[0]))
@@ -26,11 +27,14 @@ try:
 except:
     usage()
 
+entry_ctr = count(1,1)
+enext = entry_ctr.__next__
+
 # first get a JWT by posting some logentries
 
 print("sending POST /"+user)
 conn = http.client.HTTPConnection("localhost", port=65333)
-body = "post_multiple.py: entry1\npost_multiple.py: entry2\n"
+body = "post_multiple.py: entry{}\npost_multiple.py: entry{}\n".format(enext(), enext())
 headers={"Content-Length": len(body)}
 try:
     conn.request("POST", "/"+user, body=body, headers=headers)
@@ -51,7 +55,7 @@ except Exception as e:
 for _ in range(times-1):
     print("sending second POST /"+user+" with recieved JWT")
     conn = http.client.HTTPConnection("localhost", port=65333)
-    body = "post_multiple.py: entry3\npost_multiple.py: entry4\n"
+    body = "post_multiple.py: entry{}\npost_multiple.py: entry{}\n".format(enext(), enext())
     headers["Authorization"] = "Bearer " + str(jwt1, "ascii")
     headers["Content-Length"] = len(body)
     try:
@@ -66,5 +70,7 @@ for _ in range(times-1):
     except Exception as e:
         print("error:", e)
         exit()
-
+print('--------token---------')
+print(str(jwt2, 'ascii'))
+print('----------------------')
 print("test succeeded")
