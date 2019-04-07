@@ -19,3 +19,4 @@
 !post_*.sh
 !post_*.py
 !exploit*.py
+!logserver_client.py
