@@ -74,19 +74,22 @@ void HttpConnection::processRequest() {
     }
 }
 
-// return X in /request_target?entires=X&foo=bar
-// return 0 if no entries query or entries=0
-// return -1 if no query
-// return -2 if bad value
+// struct query_params.nr_entries:
+//  X in /request_target?entires=X&foo=bar
+//  0 if no entries query or entries=0
+//  -1 if no query
+//  -2 if bad value
+// struct query_params.new_user: name of new user (only used if target==/adduser?name=some_user)
 struct query_params HttpConnection::parseTargetQuery() const {
     size_t query_pos = 0, separator_pos = 0;
-    struct query_params params {0, false};
+    struct query_params params {0, false, ""};
 
     if ((query_pos = request_.target().find('?')) == boost::string_view::npos) {
         params.nr_entries = -1;
         return params; // no '?' in target -> no queries to parse
     }
 
+    // loop through all queries splitting keys and values and adding values to return struct
     do  {
         separator_pos = request_.target().find('=', query_pos);
         boost::string_view query = request_.target().substr(query_pos + 1, separator_pos - query_pos - 1);
@@ -113,13 +116,19 @@ struct query_params HttpConnection::parseTargetQuery() const {
             if (beast::iequals(val, "true"))
                 params.debug = true;
         }
+        else if (beast::iequals(query, "name")) {
+            size_t len_str_val = request_.target().find('&', separator_pos) - separator_pos;
+            const auto val = request_.target().substr(separator_pos + 1, len_str_val);
+
+            params.new_user = val;
+        }
     } while ((query_pos = request_.target().find('&', query_pos + 1)) != boost::string_view::npos);    
 
     return params;
 }
 
 // /user?query=foo -> user
-boost::string_view HttpConnection::getTargetUser() const {
+boost::string_view HttpConnection::getTarget() const {
     size_t pos = 0;
     if ((pos = request_.target().find('?')) == boost::string_view::npos)
         return request_.target().substr(1);
@@ -138,12 +147,31 @@ void HttpConnection::handleGET() {
         return writeResponse(BadRequest("invalid request target"));
     }
 
-    if (request_.target() == "/pubkey")
+    if (getTarget() == "pubkey")
         return writeResponse(PubKeyResponse());
 
     // /user1?query=foo -> logdir/user1.log
-    auto const target_user = getTargetUser().to_string();
+    auto const target_user = getTarget().to_string();
     auto const logfile_path = (logdir_ / fs::path(target_user)).replace_extension(".log");
+
+    if (target_user == "adduser") {
+        auto query = parseTargetQuery();
+
+        if (query.new_user.empty())
+            return writeResponse(BadRequest("no name provided. try /adduser?name=uname"));
+
+        // maybe remove this check for other possible exploit
+        fs::path new_user_filepath = (logdir_ / fs::path(query.new_user.to_string())).replace_extension(".log");
+        if (fs::exists(new_user_filepath))
+            return writeResponse(Unauthorized("user already exists"));
+
+        std::ofstream new_logfile {new_user_filepath};
+        if (!new_logfile)
+            return writeResponse(ServerError("could not create empty logfile for given user"));
+        
+        auto new_token = newToken(query.new_user.to_string());
+        return writeResponse(tokenResponse(new_token));
+    }
 
     // LogfileResponse() requires existing path
     if (!std::filesystem::exists(logfile_path))
@@ -171,7 +199,7 @@ void HttpConnection::handlePOST() {
         return writeResponse(BadRequest("empty message"));
 
     // /user1 -> logdir/user1.log
-    auto const target_user = getTargetUser().to_string();
+    auto const target_user = getTarget().to_string();
     auto const logfile_path = (logdir_ / fs::path(target_user)).replace_extension(".log");
 
     // if there already is an entry for requested user, valid token needs to be provided
@@ -187,7 +215,7 @@ void HttpConnection::handlePOST() {
             if (writeLogfile(logfile_path) < 0)
                 return writeResponse(ServerError("could not open logfile")); 
                    
-            return writeResponse(PostOkResponse(token.get().to_string()));  
+            return writeResponse(tokenResponse(token.get().to_string()));  
         } 
         else
             return writeResponse(Unauthorized("invalid token provided"));
@@ -198,15 +226,7 @@ void HttpConnection::handlePOST() {
         if (writeLogfile(logfile_path) < 0)
             return writeResponse(ServerError("could not open logfile"));            
 
-        auto new_token = jwt::jwt_object {
-            jwt::params::algorithm("RS256"),
-            jwt::params::secret(priv_key_)
-        };
-
-        new_token.add_claim("iss", server_name_);
-        new_token.add_claim("aud", target_user);
-
-        return writeResponse(PostOkResponse(new_token.signature()));
+        return writeResponse(tokenResponse(newToken(target_user)));
     }
     assert(false); // should already have returned in if/else
 }
@@ -254,6 +274,19 @@ boost::optional<boost::string_view> HttpConnection::extractJWT() const {
     } catch (std::out_of_range&) { // no Authorization header field
         return boost::none;
     }
+}
+
+std::string HttpConnection::newToken(std::string const& name) const {
+
+    auto new_token = jwt::jwt_object {
+        jwt::params::algorithm("RS256"),
+        jwt::params::secret(priv_key_)
+    };
+
+    new_token.add_claim("iss", server_name_);
+    new_token.add_claim("aud", name);
+
+    return new_token.signature();
 }
 
 // take token string (encoded) and verify signature

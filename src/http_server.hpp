@@ -28,6 +28,7 @@ void fail(std::error_code const& ec, std::string const& msg);
 struct query_params {
     int nr_entries = 0;
     bool debug = false;
+    boost::beast::string_view new_user = "";
 };
 
 /*  handler class for http connections  */
@@ -85,8 +86,9 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
     boost::optional<boost::string_view> extractJWT() const;
     bool verifyJWT(std::string const& token, std::string const& requested_user) const;
     struct query_params parseTargetQuery() const;
-    boost::string_view getTargetUser() const;
+    boost::string_view getTarget() const;
     int writeLogfile(std::filesystem::path const& full_path) const;
+    std::string newToken(std::string const& name) const;
 
     // misc
     // construct various responses
@@ -96,7 +98,7 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
     boost::beast::http::response<boost::beast::http::dynamic_body> Unauthorized(std::string const& reason) const;
     boost::beast::http::response<boost::beast::http::file_body> LogfileResponse(std::filesystem::path const& full_path) const;
     boost::beast::http::response<boost::beast::http::dynamic_body> LastLogsResponse(std::filesystem::path const& full_path, size_t nr_lines) const;
-    boost::beast::http::response<boost::beast::http::dynamic_body> PostOkResponse(std::string const& jwt) const;
+    boost::beast::http::response<boost::beast::http::dynamic_body> tokenResponse(std::string const& jwt) const;
     boost::beast::http::response<boost::beast::http::string_body> PubKeyResponse() const;
 
 public:

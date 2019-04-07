@@ -129,7 +129,7 @@ http::response<http::dynamic_body> HttpConnection::LastLogsResponse(fs::path con
 }
 
 // 200 OK; content_type application/jwt; body=jwtstring
-http::response<http::dynamic_body> HttpConnection::PostOkResponse(std::string const& jwt) const {
+http::response<http::dynamic_body> HttpConnection::tokenResponse(std::string const& jwt) const {
     http::response<http::dynamic_body> res;
     res.set(http::field::server, server_name_);
     res.set(http::field::content_type, "application/jwt;");
