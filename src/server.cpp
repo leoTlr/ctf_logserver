@@ -12,20 +12,26 @@ namespace beast = boost::beast;         // from <boost/beast.hpp>
 namespace http = beast::http;           // from <boost/beast/http.hpp>
 namespace net = boost::asio;            // from <boost/asio.hpp>
 using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
+namespace fs = std::filesystem;
 
 // read key pair from provided paths into strings (required by jwt implementation)
 // exits on error
 // pair.first -> public key
 // pair.second -> private_key
-pair<string, string> read_rsa_keys(filesystem::path const& pub_key, filesystem::path const& priv_key) {
+pair<string, string> read_rsa_keys(fs::path const& pub_key, fs::path const& priv_key) {
+
+    if (!(pub_key.extension() == ".pem") || !(priv_key.extension() == ".pem")) {
+        cerr << "please provide key files in .pem format" << endl;
+        exit(EXIT_FAILURE);
+    }
     
-    if (!filesystem::exists(priv_key) || !filesystem::exists(pub_key)) {
+    if (!fs::exists(priv_key) || !fs::exists(pub_key)) {
         cerr << "could not find provided key files" << endl;
         exit(EXIT_FAILURE);
     }
 
     pair<string, string> keypair;
-    array<filesystem::path, 2> keyfile_paths {pub_key, priv_key};
+    array<fs::path, 2> keyfile_paths {pub_key, priv_key};
     for (int i=0; i<2; i++) {
 
         auto path = keyfile_paths[i];
@@ -88,7 +94,7 @@ pair<string, string> read_rsa_keys(filesystem::path const& pub_key, filesystem::
 
 int main(int argc, char** argv) {
 
-    if (argc != 2) return EXIT_FAILURE;
+    if (argc != 4) return EXIT_FAILURE;
 
     uint16_t port = static_cast<uint16_t>(atoi(argv[1]));
 
@@ -97,9 +103,9 @@ int main(int argc, char** argv) {
     tcp::acceptor acc {ioc, {net::ip::make_address("0.0.0.0"), port}};
     tcp::socket sock {ioc};
 
-    auto const logdir = filesystem::path("./logfiles/");
-    auto const pub_key = filesystem::path("./rsa_keys/public_key.pem");
-    auto const priv_key = filesystem::path("./rsa_keys/private_key.pem");
+    auto const logdir = fs::path("./logfiles/");
+    auto const pub_key = fs::path(argv[2]);
+    auto const priv_key = fs::path(argv[3]);
 
     pair<string,string> keypair = read_rsa_keys(pub_key, priv_key);
 
@@ -109,11 +115,11 @@ int main(int argc, char** argv) {
     net::signal_set signals {ioc, SIGINT, SIGTERM};
     signals.async_wait(
         [&] (beast::error_code const&, int) {
-            cout << "\nsignal recieved. stopping server" << endl;
+            std::cout << "\nsignal recieved. stopping server" << endl;
             ioc.stop();
         });
 
-    cout << "started server on port " << port << endl;
+    std::cout << "started server on port " << port << endl;
     ioc.run();
 
     return EXIT_SUCCESS;
