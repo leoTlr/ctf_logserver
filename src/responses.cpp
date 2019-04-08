@@ -114,8 +114,8 @@ http::response<http::dynamic_body> HttpConnection::LastLogsResponse(fs::path con
     }
     else { // copy only last nr_lines requested lines
         std::string line;
-        for (auto const pos : line_start_positions) {
-            log_file.seekg(pos);
+        for (auto pos = line_start_positions.crbegin(); pos != line_start_positions.crend(); pos++) {
+            log_file.seekg(*pos);
             std::getline(log_file, line);
             beast::ostream(res.body()) << line << std::endl;
         }
