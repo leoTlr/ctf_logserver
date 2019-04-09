@@ -295,12 +295,9 @@ bool HttpConnection::verifyJWT(std::string const& token, std::string const& requ
 
     try {
         // get alg from token header
-        auto header = jwt::jwt_header{token};
+        auto header = jwt::jwt_header{token.substr(0, token.find('.'))};
         auto alg_used = jwt::alg_to_str(header.algo());
-        
-        if (alg_used == jwt::string_view{"NONE"})
-            return false;
-
+    
         std::error_code ec;
         auto decoded_token = jwt::decode(
                 jwt::string_view(token), 
@@ -311,7 +308,7 @@ bool HttpConnection::verifyJWT(std::string const& token, std::string const& requ
                 jwt::params::aud(requested_user), // request target has to match audience
                 jwt::params::verify(true));
 
-        if (ec) // invalid issuer or audience
+        if (ec && ec != jwt::AlgorithmErrc::NoneAlgorithmUsed)
             return false;
 
     } catch (jwt::SignatureFormatError const& e) { // malformed sig
