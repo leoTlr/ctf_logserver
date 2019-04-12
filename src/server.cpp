@@ -92,9 +92,14 @@ pair<string, string> read_rsa_keys(fs::path const& pub_key, fs::path const& priv
     return keypair;
 }
 
+void usage(char** argv) {
+    cerr << "usage: " << argv[0] << " port pub_key.pem priv_key.pem" << endl;
+    exit(EXIT_FAILURE);
+}
+
 int main(int argc, char** argv) {
 
-    if (argc != 4) return EXIT_FAILURE;
+    if (argc != 4) usage(argv);
 
     uint16_t port = static_cast<uint16_t>(atoi(argv[1]));
 
