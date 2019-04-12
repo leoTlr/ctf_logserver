@@ -21,3 +21,7 @@
 !exploit*.py
 !logserver_client.py
 !init.sh
+
+# 2nd one is for ctf rollout
+!README.md
+!README
