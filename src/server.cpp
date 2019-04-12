@@ -42,7 +42,7 @@ pair<string, string> read_rsa_keys(fs::path const& pub_key, fs::path const& priv
             exit(EXIT_FAILURE); 
         }
 
-        const string pattern_private_key ("-----BEGIN PRIVATE KEY-----");
+        const string pattern_private_key ("-----BEGIN RSA PRIVATE KEY-----");
         const string pattern_public_key ("-----BEGIN PUBLIC KEY-----");
 
         keyfile.seekg(0, std::ios::end);
