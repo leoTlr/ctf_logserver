@@ -1,0 +1,18 @@
+Logserver
+
+build:
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+
+if you run it for the first time you can use init.sh 
+this will generate the rsa keys, make required directories and build the executable
+
+There is no frontend.
+Either use provided client or pipe requests into nc:
+$ ./server 65333 ./pub_key.pem ./priv_key.pem &  
+$ cat logfile | logserver_client.py sendlogs some_user 127.0.0.1 65333
+$ logserver_client.py getlogs some_user 127.0.0.1 65333
+$ logserver_client.py showtoken some_user
+$ printf "GET /some_user HTTP/1.1\r\nAuthorization: Bearer j.w.t\_\r\n\r\n" | nc 127.0.0.1 65333
