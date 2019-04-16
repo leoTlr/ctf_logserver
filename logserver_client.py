@@ -1,13 +1,10 @@
 #!/usr/bin/python
 
-try:
-    import argparse
-    import pickle
-    import http.client
-    from ipaddress import ip_address
-    from sys import exit, argv
-except ImportError as e:
-    print(e)
+import argparse
+import pickle
+import http.client
+from ipaddress import ip_address
+from sys import exit, argv
 
 # --- argument parsing ----------------------------------------
 desc = ''' client for super secure logserver v0.1
@@ -47,6 +44,9 @@ showtoken_p.add_argument('user', type=str, help='username to check for dumped to
 
 def_args = ['getlogs', '127.0.0.1', '65333', 'new_client']
 args = parser.parse_args()
+if not args.subcommand:
+    print('please specify subcommand')
+    exit(-1)
 # --- end of argument parsing ----------------------------------
 
 token_dumps = dict()
