@@ -28,6 +28,7 @@ common_args.add_argument('-n', '--new-user', action='store_true',
 parser = argparse.ArgumentParser(description=desc, epilog=epi, 
     formatter_class=argparse.RawDescriptionHelpFormatter)
 subparsers = parser.add_subparsers(dest='subcommand')
+subparsers.required = True
 
 getlogs_p = subparsers.add_parser('getlogs', parents=[common_args], help=getlogs_help)
 getlogs_p.add_argument('-nr', '--nr-entries', type=int, metavar='NR', default=0,
@@ -44,9 +45,6 @@ showtoken_p.add_argument('user', type=str, help='username to check for dumped to
 
 def_args = ['getlogs', '127.0.0.1', '65333', 'new_client']
 args = parser.parse_args()
-if not args.subcommand:
-    print('please specify subcommand')
-    exit(-1)
 # --- end of argument parsing ----------------------------------
 
 token_dumps = dict()
