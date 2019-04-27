@@ -31,6 +31,8 @@ common_args = argparse.ArgumentParser(add_help=False)
 common_args.add_argument('user', type=str, help='username for logserver')
 common_args.add_argument('ip', type=ip_address, help='address of logserver')
 common_args.add_argument('port', type=int, help='port of logserver')
+common_args.add_argument('-d', '--dumpfile', type=str, nargs='?', default=TOKENDUMP_PATH,
+    help='path to token dump file. default ./userdumps.pickle')
 
 parser = argparse.ArgumentParser(description=desc, epilog=epi, 
     formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -90,6 +92,8 @@ def add_user(user, ip, port):
 
                 with open(TOKENDUMP_PATH, 'wb') as dumpfile:
                     pickle.dump(token_dumps, dumpfile)
+
+                return token_str
             else:
                 print('[ERROR] {} {}: {}'.format(res.status, res.reason, str(res.read(), "ascii")))
                 exit(1)
@@ -131,16 +135,15 @@ def get_logs(user, ip, port, nr_lines, outfile):
 
 
 def send_logs(user, ip, port, infile):
-    print('[*] sending logs as user', user)
-
     try:
         token = token_dumps[user]
     except KeyError:
         print('[*] no dumped token found for user', user)
-        add_user(args.user, ip, port)
+        token = add_user(args.user, ip, port)
 
     header = {'Authorization':'Bearer '+token}
 
+    print('[*] sending logs as user', user)
     try:
         conn = http.client.HTTPConnection(ip, port=port, timeout=10)
 
@@ -166,11 +169,11 @@ def send_logs(user, ip, port, infile):
 
 # first restore dumped tokens
 try:
-    with open(TOKENDUMP_PATH, 'rb') as dumps:
+    with open(args.dumpfile, 'rb') as dumps:
         token_dumps = pickle.load(dumps)
-    print('[*] found token dumps')
+    print('[*] found token dumpfile')
 except FileNotFoundError:
-    print('[*] no dumped tokens found')
+    print('[*] token dumpfile not found')
 
 # take action only on specified subcommand
 if args.subcommand == 'sendlogs':
