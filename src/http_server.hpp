@@ -16,14 +16,9 @@
 #include <iostream> // fail()
 #include <exception>
 
-void start_http_server(boost::asio::ip::tcp::acceptor& acceptor,
-                        boost::asio::ip::tcp::socket& socket_,
-                        std::filesystem::path const& logdir,
-                        std::pair<std::string, std::string> const& keypair,
-                        std::string const& server_name
-);
-
-void fail(std::error_code const& ec, std::string const& msg);
+inline void fail(std::error_code const& ec, std::string const& msg) {
+    std::cerr << msg << ": " << ec.message() << std::endl;
+}
 
 struct query_params {
     int nr_entries = 0;
@@ -86,20 +81,23 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
     boost::optional<boost::string_view> extractJWT() const;
     bool verifyJWT(std::string const& token, std::string const& requested_user) const;
     struct query_params parseTargetQuery() const;
-    boost::string_view getTarget() const;
+    boost::string_view getTargetUser() const;
     int writeLogfile(std::filesystem::path const& full_path) const;
     std::string newToken(std::string const& name) const;
 
     // misc
     // construct various responses
-    boost::beast::http::response<boost::beast::http::dynamic_body> BadRequest(std::string const& reason) const;
-    boost::beast::http::response<boost::beast::http::dynamic_body> NotFound(boost::string_view target) const;
-    boost::beast::http::response<boost::beast::http::dynamic_body> ServerError(std::string const& reason) const;
-    boost::beast::http::response<boost::beast::http::dynamic_body> Unauthorized(std::string const& reason) const;
-    boost::beast::http::response<boost::beast::http::file_body> LogfileResponse(std::filesystem::path const& full_path) const;
-    boost::beast::http::response<boost::beast::http::dynamic_body> LastLogsResponse(std::filesystem::path const& full_path, size_t nr_lines) const;
-    boost::beast::http::response<boost::beast::http::dynamic_body> tokenResponse(std::string const& jwt) const;
-    boost::beast::http::response<boost::beast::http::string_body> PubKeyResponse() const;
+    using http_dyn_body_res = boost::beast::http::response<boost::beast::http::dynamic_body>;
+    using http_file_body_res = boost::beast::http::response<boost::beast::http::file_body>;
+    using http_string_body_res = boost::beast::http::response<boost::beast::http::string_body>;
+    http_dyn_body_res BadRequest(std::string const& reason) const;
+    http_dyn_body_res NotFound(boost::string_view target) const;
+    http_dyn_body_res ServerError(std::string const& reason) const;
+    http_dyn_body_res Unauthorized(std::string const& reason) const;
+    http_file_body_res LogfileResponse(std::filesystem::path const& full_path) const;
+    http_dyn_body_res LastLogsResponse(std::filesystem::path const& full_path, size_t nr_lines) const;
+    http_dyn_body_res tokenResponse(std::string const& jwt) const;
+    http_string_body_res PubKeyResponse() const;
 
 public:
     HttpConnection(
@@ -139,5 +137,27 @@ public:
         checkDeadline();
     }; 
 };
+
+// create HttpConnection instance on incoming tcp conn
+inline void start_http_server( 
+    boost::asio::ip::tcp::acceptor& acceptor,
+    boost::asio::ip::tcp::socket& socket,
+    std::filesystem::path const& logdir,
+    std::pair<std::string, std::string> const& keypair,
+    std::string const& server_name) 
+{
+    acceptor.async_accept(
+        socket, 
+        [&](boost::beast::error_code ec) {
+            if (!ec) {
+                try {
+                    std::make_shared<HttpConnection>(std::move(socket), logdir, keypair, server_name)->start();
+                } catch (std::invalid_argument& e) {
+                    std::cerr << "[ERROR] " << e.what() << std::endl;
+                }
+            }
+            start_http_server(acceptor, socket, logdir, keypair, server_name);
+        });
+}
 
 #endif // HTTP_SERVER_HPP
