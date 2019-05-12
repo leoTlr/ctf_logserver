@@ -3,13 +3,14 @@ Service for ctf-project. Work in progress
 
 
 possible exploits atm:
-* GET /user?debug=true HTTP/1.1\r\nAuthorization: Bearer _some jwt_\r\n\r\n
+* GET /user?debug=true HTTP/1.1\r\nAuthorization: Bearer _some jwt_\r\n\r\n -> logfile
 * client-signed token (see description in exploit\_client\_signed\_token.py)
 * token with header field _alg_ set to _none_ leading to skipped sig verification
+* server sending token for user on GET index.html?name=user
 
 
 exploits to be added:
-* maybe skip fs::exists() check in HttpConnection::handleGET so one can simply request a token for existing logfile
+* ~~ maybe skip fs::exists() check in HttpConnection::handleGET so one can simply request a token for existing logfile ~~
 
 ## build:
 ```bash

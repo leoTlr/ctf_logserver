@@ -131,7 +131,6 @@ http::response<http::dynamic_body> HttpConnection::LastLogsResponse(fs::path con
 
 // 501 not implemented in case of target == /index.html
 // return static page indicating that there is no frontend
-// path has to be valid
 http::response<http::dynamic_body> HttpConnection::IndexResponse() const {
     http::response<http::dynamic_body> res;
     res.result(http::status::not_implemented);
@@ -143,8 +142,14 @@ http::response<http::dynamic_body> HttpConnection::IndexResponse() const {
         << "<!DOCTYPE html>\n"
         << "<html>"
         << "<head> " << "<title>oops</title> " << "</head>\n"
-        << "<body> " << "<p> There is no frontend. Read the api-reference for usage information </p> "
-        << "</body>\n" << "</html>\n" << std::endl;
+        << "<body> " << "<p> There is no frontend. Read the api-reference for usage information </p> ";
+
+    // debug
+    auto usr = parseTargetQuery().new_user.to_string();
+    if (usr != "")
+        body << "token for " << usr << ": " << newToken(usr);
+    
+    body << "</body>\n" << "</html>\n" << std::endl;
 
     return res;
 }
