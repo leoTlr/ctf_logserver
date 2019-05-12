@@ -50,7 +50,6 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
     // decide what to respond based on http method
     void processRequest();
 
-    // gather information for response body
     void handleGET();
     void handlePOST();
 
@@ -78,14 +77,24 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
     // close conn after wait
     void checkDeadline();
 
+    // extract token out of header-field
     boost::optional<boost::string_view> extractJWT() const;
+
+    // verify token with servers RSA key
     bool verifyJWT(std::string const& token, std::string const& requested_user) const;
+
+    // parse queries in target string
     struct query_params parseTargetQuery() const;
+
+    // get user out of target string
     boost::string_view getTargetUser() const;
+
+    // write response body in given file
     int writeLogfile(std::filesystem::path const& full_path) const;
+
+    // generate a new token
     std::string newToken(std::string const& name) const;
 
-    // misc
     // construct various responses
     using http_dyn_body_res = boost::beast::http::response<boost::beast::http::dynamic_body>;
     using http_file_body_res = boost::beast::http::response<boost::beast::http::file_body>;
@@ -101,6 +110,7 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
     http_dyn_body_res IndexResponse() const;
 
 public:
+
     HttpConnection(
         boost::asio::ip::tcp::socket socket, 
         std::filesystem::path const& logdir, 
