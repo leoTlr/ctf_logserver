@@ -98,6 +98,7 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
     http_dyn_body_res LastLogsResponse(std::filesystem::path const& full_path, size_t nr_lines) const;
     http_dyn_body_res tokenResponse(std::string const& jwt) const;
     http_string_body_res PubKeyResponse() const;
+    http_dyn_body_res IndexResponse() const;
 
 public:
     HttpConnection(

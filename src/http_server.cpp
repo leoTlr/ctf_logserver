@@ -125,11 +125,15 @@ void HttpConnection::handleGET() {
         return writeResponse(BadRequest("invalid request target"));
     }
 
-    if (getTargetUser() == "pubkey")
+    auto const target_user = getTargetUser().to_string();
+
+    // filter out GET requests with target not being a user
+    if (target_user == "pubkey")
         return writeResponse(PubKeyResponse());
+    else if (target_user == "index.html" || target_user == "index.htm" || target_user == "")
+        return writeResponse(IndexResponse());
 
     // /user1?query=foo -> logdir/user1.log
-    auto const target_user = getTargetUser().to_string();
     auto const logfile_path = (logdir_ / fs::path(target_user)).replace_extension(".log");
 
     struct query_params query = parseTargetQuery();    

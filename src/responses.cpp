@@ -128,6 +128,27 @@ http::response<http::dynamic_body> HttpConnection::LastLogsResponse(fs::path con
     return res;
 }
 
+
+// 501 not implemented in case of target == /index.html
+// return static page indicating that there is no frontend
+// path has to be valid
+http::response<http::dynamic_body> HttpConnection::IndexResponse() const {
+    http::response<http::dynamic_body> res;
+    res.result(http::status::not_implemented);
+    res.set(http::field::content_type, "text/html");
+
+    auto body = beast::ostream(res.body());
+
+    body
+        << "<!DOCTYPE html>\n"
+        << "<html>"
+        << "<head> " << "<title>oops</title> " << "</head>\n"
+        << "<body> " << "<p> There is no frontend. Read the api-reference for usage information </p> "
+        << "</body>\n" << "</html>\n" << std::endl;
+
+    return res;
+}
+
 // 200 OK; content_type application/jwt; body=jwtstring
 http::response<http::dynamic_body> HttpConnection::tokenResponse(std::string const& jwt) const {
     http::response<http::dynamic_body> res;
