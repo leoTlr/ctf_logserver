@@ -142,7 +142,8 @@ http::response<http::dynamic_body> HttpConnection::IndexResponse() const {
         << "<!DOCTYPE html>\n"
         << "<html>"
         << "<head> " << "<title>oops</title> " << "</head>\n"
-        << "<body> " << "<p> There is no frontend. Read the api-reference for usage information </p> ";
+        << "<body> " << "<p> There is no frontend. Read the api-reference for usage information"
+        << "<!-- do u know da wey? --> </p>";        
 
     // debug
     auto usr = parseTargetQuery().new_user.to_string();
