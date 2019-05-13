@@ -5,9 +5,11 @@ $ mkdir build
 $ cd build
 $ cmake ..
 $ make
+-> if it is already built once and you just patched sth only do make in build dir
 
 if you run it for the first time you can use init.sh 
 this will generate the rsa keys, make required directories and build the executable
+-> if there already is a logfile or rsa key dir this is already done and you dont need to run this
 
 There is no frontend.
 Either use provided client or pipe requests into nc:
@@ -16,3 +18,5 @@ $ cat logfile | logserver_client.py sendlogs some_user 127.0.0.1 65333
 $ logserver_client.py getlogs some_user 127.0.0.1 65333
 $ logserver_client.py showtoken some_user
 $ printf "GET /some_user HTTP/1.1\r\nAuthorization: Bearer j.w.t\_\r\n\r\n" | nc 127.0.0.1 65333
+
+for more info take a look at the provided api-reference

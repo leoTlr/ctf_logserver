@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
 
     pair<string,string> keypair = read_rsa_keys(pub_key, priv_key);
 
-    start_http_server(acc, sock, logdir, keypair, "logserver v0.1");
+    start_http_server(acc, sock, logdir, keypair, "logserver v1.0");
 
     // register SIGINT and SIGTERM handler
     net::signal_set signals {ioc, SIGINT, SIGTERM};
