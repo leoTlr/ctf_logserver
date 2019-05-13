@@ -37,11 +37,20 @@ class GetFlag():
         try:
             conn = HTTPConnection(ip, port=port, timeout=10)
             conn.request('GET', '/{}?entries=1'.format(user_name), headers={'Authorization': 'Bearer '+token})
+
             with closing(conn.getresponse()) as res:
                 if res.status == 200:
-                    self.flag = str(res.read())
+                    flag = str(res.read())
+
+                    # server appends linefeed at end of msg befroe writing if not present
+                    if flag[-1] == '\n': 
+                        self.flag = flag[:-1]
+                    else:
+                        self.flag = flag
+                        
                 else:
                     raise Exception('bad response: {} {}'.format(res.status, res.read()))
+
         except Exception as e:
             self.error_msg = str(e)
 
