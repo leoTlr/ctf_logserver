@@ -13,7 +13,10 @@ add_executable(server
 
 find_package(OpenSSL REQUIRED) # needed by jwt-cpp
 
-include_directories(${OPENSSL_INCLUDE_DIR})
+include_directories(
+	${OPENSSL_INCLUDE_DIR}
+	${BOOST_INCLUDE_DIRS}
+)
 
 target_compile_options(server PUBLIC -Wall -Wextra -std=c++17 -g)
 
@@ -21,4 +24,5 @@ target_link_libraries(server PUBLIC
 	${OPENSSL_LIBRARIES}
 	-lpthread # boost::beast
 	-lstdc++fs # std::filesystem
+	-lboost_system # neccessary in ctf environment
 )

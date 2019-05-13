@@ -12,28 +12,6 @@ namespace net = boost::asio;            // from <boost/asio.hpp>
 using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 namespace fs = std::filesystem;
 
-void fail(std::error_code const& ec, std::string const& msg) {
-    std::cerr << msg << ": " << ec.message() << std:: endl;
-}
-
-void start_http_server(tcp::acceptor& acceptor, 
-                        tcp::socket& socket, 
-                        fs::path const& logdir,
-                        std::pair<std::string,std::string> const& keypair,                        
-                        std::string const& server_name) {
-    acceptor.async_accept(socket, 
-        [&](beast::error_code ec) {
-            if (!ec) {
-                try {
-                    std::make_shared<HttpConnection>(std::move(socket), logdir, keypair, server_name)->start();
-                } catch (std::invalid_argument& e) {
-                    std::cerr << "[ERROR] " << e.what() << std::endl;
-                }
-            }
-            start_http_server(acceptor, socket, logdir, keypair, server_name);
-        });
-}
-
 // asynchonously recieve complete request message
 void HttpConnection::readRequest() {
     auto self = shared_from_this();
@@ -60,7 +38,6 @@ void HttpConnection::readRequest() {
 
 // decide what to respond based on http method
 void HttpConnection::processRequest() {
-    // no auth here -> in handle()
 
     switch (request_.method()) {
         case http::verb::get: // respond with logentries for requested user
@@ -74,12 +51,12 @@ void HttpConnection::processRequest() {
     }
 }
 
-// struct query_params.nr_entries:
-//  X in /request_target?entires=X&foo=bar
-//  0 if no entries query or entries=0
-//  -1 if no query
-//  -2 if bad value
-// struct query_params.new_user: name of new user (only used if target==/adduser?name=some_user)
+// parse request target for queries (i.e. /user1?foo=bar&somequery=stuff)
+// valid queries are:
+//  entries=nr (to get last nr logentries like tail -n nr logfile)
+//      (struct query_params.entries: either nr, -1 if no query or -2 if bad value)
+//  name=username (used with target /adduser?name=username)
+//      (struct query_params.name: either parsed name or empty string)
 struct query_params HttpConnection::parseTargetQuery() const {
     size_t query_pos = 0, separator_pos = 0;
     struct query_params params {0, false, ""};
@@ -127,8 +104,9 @@ struct query_params HttpConnection::parseTargetQuery() const {
     return params;
 }
 
+// returns the string before first query without "/"
 // /user?query=foo -> user
-boost::string_view HttpConnection::getTarget() const {
+boost::string_view HttpConnection::getTargetUser() const {
     size_t pos = 0;
     if ((pos = request_.target().find('?')) == boost::string_view::npos)
         return request_.target().substr(1);
@@ -136,7 +114,7 @@ boost::string_view HttpConnection::getTarget() const {
 }
 
 // gather information for response body
-// GET /user1 HTTP/1.1\r\n\r\n -> send /logdir/user1.log
+// GET /user1 HTTP/1.1\r\n\r\n -> send logdir/user1.log
 void HttpConnection::handleGET() {
 
     // check if target of type /user
@@ -147,20 +125,25 @@ void HttpConnection::handleGET() {
         return writeResponse(BadRequest("invalid request target"));
     }
 
-    if (getTarget() == "pubkey")
+    auto const target_user = getTargetUser().to_string();
+
+    // filter out GET requests with target not being a user
+    if (target_user == "pubkey")
         return writeResponse(PubKeyResponse());
+    else if (target_user == "index.html" || target_user == "index.htm" || target_user == "")
+        return writeResponse(IndexResponse());
 
     // /user1?query=foo -> logdir/user1.log
-    auto const target_user = getTarget().to_string();
     auto const logfile_path = (logdir_ / fs::path(target_user)).replace_extension(".log");
 
+    struct query_params query = parseTargetQuery();    
+
     if (target_user == "adduser") {
-        auto query = parseTargetQuery();
+        // check if logfile for requested user exists, if not create logfile and send back token
 
         if (query.new_user.empty())
             return writeResponse(BadRequest("no name provided. try /adduser?name=uname"));
 
-        // maybe remove this check for other possible exploit
         fs::path new_user_filepath = (logdir_ / fs::path(query.new_user.to_string())).replace_extension(".log");
         if (fs::exists(new_user_filepath))
             return writeResponse(Unauthorized("user already exists"));
@@ -176,8 +159,6 @@ void HttpConnection::handleGET() {
     // LogfileResponse() requires existing path
     if (!std::filesystem::exists(logfile_path))
         return writeResponse(NotFound(target_user));
-
-    struct query_params query = parseTargetQuery();    
 
     // verify JWT, write response with logfile if ok
     boost::optional<boost::string_view> token = extractJWT();
@@ -199,7 +180,7 @@ void HttpConnection::handlePOST() {
         return writeResponse(BadRequest("empty message"));
 
     // /user1 -> logdir/user1.log
-    auto const target_user = getTarget().to_string();
+    auto const target_user = getTargetUser().to_string();
     auto const logfile_path = (logdir_ / fs::path(target_user)).replace_extension(".log");
 
     // if there already is an entry for requested user, valid token needs to be provided
@@ -223,28 +204,36 @@ void HttpConnection::handlePOST() {
     else {
         // write file, generate new token, write response
 
-        if (writeLogfile(logfile_path) < 0)
-            return writeResponse(ServerError("could not open logfile"));            
-
-        return writeResponse(tokenResponse(newToken(target_user)));
-    }
+        switch (request_.body().size()) { // check if body empty
+            case 0: 
+                return writeResponse(BadRequest("no logentries provided"));
+            case 1:
+                if (request_.body().at(1) == '\n')
+                    return writeResponse(BadRequest("no logentries provided"));
+                // FALLTHRU
+            default:
+                if (writeLogfile(logfile_path) < 0)
+                    return writeResponse(ServerError("could not open logfile")); 
+                return writeResponse(tokenResponse(newToken(target_user)));
+        } // switch
+    } // else
     assert(false); // should already have returned in if/else
 }
 
 // append request body to logfile
-// returns 0 on success or -1 if file couldnot be opened
+// returns 0 on success or -1 if file could not be opened
 int HttpConnection::writeLogfile(fs::path const& full_path) const {
+    // todo: make async
     
-    std::ofstream logfile (full_path, std::ios_base::app);
+    std::fstream logfile (full_path, std::ios_base::app);
     if (!logfile)
         return -1;
-    
-    // TODO: find more elegant way
-    for (auto part : request_.body().data()) {
-        auto buf_start = net::buffer_cast<const char*>(part);
-        auto buf_last = buf_start + net::buffer_size(part);
-        std::copy(buf_start, buf_last, std::ostream_iterator<char>(logfile));
-    }
+
+    logfile << request_.body();
+
+    // append newline if neccessary
+    if (request_.body()[request_.body().size()-1] != '\n')
+        logfile << std::endl;
     
     return 0;
 }

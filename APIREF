@@ -1,0 +1,57 @@
+########################################
+# Official API-reference for logserver #
+########################################
+
+- server responds to HTTP 1.* (2.* not implemented)
+    - only GET and POST implemented
+    - default port 5001
+- Authentification via Json-Web-Token, signed by private RSA-key
+    - token provided in header-field: "...Authorizathon: Bearer JWT" with JWT being the token
+    - token always needs to be provided to either recieve or append logfiles (better not lose it)
+- there is a client provided (see client --help for info)
+- for build instructions see README
+
+- sample usage:
+    - send "GET /adduser?name=user" to recieve a token
+      (or just POST your logs if you are sure this user does not exist yet, server will respond with token on success)
+    - send "POST /user" with logs in body (entries separated by single newline)
+    - send "GET /user" (with your token in header-field Authorization)
+
+- sample usage using client:
+    - client sendlogs user ip port
+        - client will recive and remember the token for you
+    - client getlogs user ip port
+    - see client --help
+
+########################################
+GET -> recieve logs from server:
+
+- intended usage is "GET /username":
+    - header-field "Authorization: Bearer JWT" with JWT being a Json-Web-Token
+    - in case there is no (or invalid) token provided, server will respond with 403 Unauthorized not sending logs
+    - in case there is no logfile for this user, server will respond with 404
+    - if there is a query of type "/username?entries=n" with n > 0 server will respond like if you would do tail on the logfile
+
+- on request target  "/adduser":
+    - if query "/adduser?name=username" server will create a logfile for requested user and respond with a signed token for this user
+    - in case there already is a logfile for this user, server will respond with 401 Unathorized
+
+- on request target "/pubkey":
+    -> server responds with its RSA public key so you can verify integrity of yout tokens
+
+- on request target "/", "/index.html" or "/index.htm":
+    -> 501 not implemented + static html page indicating there is no frontend
+########################################
+
+
+########################################
+POST -> send logs to server:
+
+- intended usage is "POST /username":
+    - logentries in HTTP body, each ending with newline
+    - header-field "Authorization: Bearer JWT" with JWT being an server-signed Json-Web-Token
+    - in case there is no (or invalid) token provided and there is a logfile for requested user, server will respond with 403 Unauthorized not saving logs
+    - in case of no token and no existing logfile for requested user, server will save logs and respond with token
+########################################
+
+
