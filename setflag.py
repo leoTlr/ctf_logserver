@@ -24,18 +24,17 @@ def _flag():
 class SetFlag():
 
     # POST flag as user flag_id, collect and return token
-    def execute(self, ip, port):
+    def execute(self, ip, port, flag):
         assert isinstance(ip, str)
         assert isinstance(port, int) and (0 < port < 2**16)
 
         self.flag_id = user_name = _rand_str()
-        self.flag = _flag()
         self.error_msg = ''
         self.token = ''
 
         try:
             conn = HTTPConnection(ip, port=port, timeout=10)
-            conn.request('POST', '/'+user_name, body=self.flag)
+            conn.request('POST', '/'+user_name, body=flag)
             with closing(conn.getresponse()) as res:
                 if res.status == 200:
                     self.token = str(res.read())
@@ -45,8 +44,7 @@ class SetFlag():
             self.error_msg = str(e)
 
     def result(self):
-        return {'FLAG_ID': self.flag_id, 
-                'FLAG': self.flag, 
+        return {'FLAG_ID': self.flag_id,  
                 'TOKEN': self.token, 
                 'ERROR_MSG': self.error_msg}
 
@@ -58,6 +56,6 @@ if __name__ == "__main__":
     port = 65333
 
     sf_obj = SetFlag()
-    sf_obj.execute(ip, port)
+    sf_obj.execute(ip, port, _flag())
     print(sf_obj.result())
 
