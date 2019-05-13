@@ -31,7 +31,7 @@ class HttpConnection : public std::enable_shared_from_this<HttpConnection> {
 
     boost::asio::ip::tcp::socket socket_;
     boost::beast::flat_buffer readbuf_ {8192};
-    boost::beast::http::request<boost::beast::http::dynamic_body> request_;
+    boost::beast::http::request<boost::beast::http::string_body> request_;
 
     // timer for putting a deadline on connection processing
     boost::asio::basic_waitable_timer<std::chrono::steady_clock> deadline_ {

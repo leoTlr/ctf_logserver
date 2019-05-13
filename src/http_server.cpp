@@ -204,28 +204,36 @@ void HttpConnection::handlePOST() {
     else {
         // write file, generate new token, write response
 
-        if (writeLogfile(logfile_path) < 0)
-            return writeResponse(ServerError("could not open logfile"));            
-
-        return writeResponse(tokenResponse(newToken(target_user)));
-    }
+        switch (request_.body().size()) { // check if body empty
+            case 0: 
+                return writeResponse(BadRequest("no logentries provided"));
+            case 1:
+                if (request_.body().at(1) == '\n')
+                    return writeResponse(BadRequest("no logentries provided"));
+                // FALLTHRU
+            default:
+                if (writeLogfile(logfile_path) < 0)
+                    return writeResponse(ServerError("could not open logfile")); 
+                return writeResponse(tokenResponse(newToken(target_user)));
+        } // switch
+    } // else
     assert(false); // should already have returned in if/else
 }
 
 // append request body to logfile
-// returns 0 on success or -1 if file couldnot be opened
+// returns 0 on success or -1 if file could not be opened
 int HttpConnection::writeLogfile(fs::path const& full_path) const {
+    // todo: make async
     
-    std::ofstream logfile (full_path, std::ios_base::app);
+    std::fstream logfile (full_path, std::ios_base::app);
     if (!logfile)
         return -1;
-    
-    // TODO: find more elegant way
-    for (auto part : request_.body().data()) {
-        auto buf_start = net::buffer_cast<const char*>(part);
-        auto buf_last = buf_start + net::buffer_size(part);
-        std::copy(buf_start, buf_last, std::ostream_iterator<char>(logfile));
-    }
+
+    logfile << request_.body();
+
+    // append newline if neccessary
+    if (request_.body()[request_.body().size()-1] != '\n')
+        logfile << std::endl;
     
     return 0;
 }
