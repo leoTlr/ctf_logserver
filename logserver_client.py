@@ -54,16 +54,22 @@ sendlogs_p.add_argument('-f', '--infile', type=argparse.FileType('r'), default='
 showtoken_p = subparsers.add_parser('showtoken', help=showtoken_help,
     description=' '+showtoken_help, formatter_class=argparse.RawDescriptionHelpFormatter)
 showtoken_p.add_argument('user', type=str, help='username to check for dumped token')
+showtoken_p.add_argument('-d', '--dumpfile', type=str, nargs='?', default=TOKENDUMP_PATH,
+    help='path to token dump file. default ./userdumps.pickle')
 
 deltoken_p = subparsers.add_parser('deltoken', help=deltoken_help,
     description=deltoken_p_desc, formatter_class=argparse.RawDescriptionHelpFormatter)
 deltoken_p.add_argument('user', nargs='?', type=str, help='user for wich to delete dumped token')
+deltoken_p.add_argument('-d', '--dumpfile', type=str, nargs='?', default=TOKENDUMP_PATH,
+    help='path to token dump file. default ./userdumps.pickle')
 deltoken_p.add_argument('--all', action='store_true', help='delete all dumped tokens')
 
 addtoken_p = subparsers.add_parser('addtoken', help=addtoken_help,
     description=' '+addtoken_help, formatter_class=argparse.RawDescriptionHelpFormatter)
 addtoken_p.add_argument('user', type=str, help='user for wich this token is signed')
 addtoken_p.add_argument('token', type=str, help='JWT in base64url (parts separated by ".")')
+addtoken_p.add_argument('-d', '--dumpfile', type=str, nargs='?', default=TOKENDUMP_PATH,
+    help='path to token dump file. default ./userdumps.pickle')
 addtoken_p.add_argument('-f', '--force', action='store_true', help='overwrite if exists')
 
 def_args = ['getlogs', '127.0.0.1', '65333', 'new_client']
@@ -187,7 +193,7 @@ elif args.subcommand =='showtoken':
         print(token_dumps[args.user])
         print('---------------------------------------------------')
     else:
-        print('[*] no token found for user', args.user,'¯\\(°_o)/¯')
+        print('[*] no token found for user', args.user,':(')
 elif args.subcommand == 'deltoken':
     wipe = False
     if args.all:
