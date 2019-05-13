@@ -193,7 +193,7 @@ elif args.subcommand =='showtoken':
         print(token_dumps[args.user])
         print('---------------------------------------------------')
     else:
-        print('[*] no token found for user', args.user,'¯\\(°_o)/¯')
+        print('[*] no token found for user', args.user,':(')
 elif args.subcommand == 'deltoken':
     wipe = False
     if args.all:
