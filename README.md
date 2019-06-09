@@ -1,8 +1,13 @@
 # ctf_logserver
-Service for ctf-project. Work in progress
+Service for ctf-project.
 
+Meant to be used in custom-made ctf environment based on [iCTF-Framework](https://github.com/ucsb-seclab/ictf-framework)
 
-possible exploits atm:
+Designed to have vulnerabilities that can be exploited by other teams to recieve a flag set by scorebot. Scorebot will POST a flag as user flag_id (generated randomly each round) and try to GET it again to ensure the service is still up.
+
+Authentification is made by a server-signed Json Web Token, that needs to be provided on GET.
+
+possible exploits:
 * GET /user?debug=true HTTP/1.1\r\nAuthorization: Bearer _some jwt_\r\n\r\n -> logfile
 * client-signed token (see description in exploit\_client\_signed\_token.py)
 * token with header field _alg_ set to _none_ leading to skipped sig verification
@@ -10,7 +15,7 @@ possible exploits atm:
 
 
 exploits to be added:
-* ~~ maybe skip fs::exists() check in HttpConnection::handleGET so one can simply request a token for existing logfile ~~
+* ~~maybe skip fs::exists() check in HttpConnection::handleGET so one can simply request a token for existing logfile~~
 
 ## build:
 ```bash
